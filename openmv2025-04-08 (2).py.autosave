@@ -1,0 +1,66 @@
+import sensor
+import image
+import time
+
+# Inicializa el sensor de la cámara
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QVGA)
+sensor.skip_frames(time=2000)
+clock = time.clock()
+# Parámetros de color para la pelota (ajustar según el color de tu pelota)
+color = (30, 100, 15, 100, 15, 100)  # (min_l, max_l, min_a, max_a, min_b, max_b) para color en HSV
+# Define la posición inicial
+center_x = 0
+center_y = 0
+
+while(True):
+    # Captura una imagen
+    img = sensor.snapshot()
+
+    # Detecta los objetos del color especificado
+    blobs = img.find_blobs([color], pixels_threshold=100, area_threshold=100, merge=True)
+
+    # Si se detecta una pelota
+    if blobs:
+        # Ordena los blobs por área (el más grande debería ser la pelota)
+        largest_blob = max(blobs, key=lambda b: b.pixels())
+
+        # coordenadas
+        center_x = largest_blob.cx()
+        center_y = largest_blob.cy()
+
+        # Dibuja un rectángulo alrededor del blob más grande
+        img.draw_rectangle(largest_blob.rect())
+        img.draw_cross(center_x, center_y)
+
+        # Imprime las coordenadas del centro del blob (pelota)
+        print("Centro de la pelota: x={}, y={}".format(center_x, center_y))
+
+        # Texto indicando hacia donde girar
+        if cx > line_center:
+                   # Si la pelota está a la derecha de la línea blanca, muestra el mensaje "Mover a la izquierda"
+                   img.draw_string(cx + 10, cy - 20, "Mover a la izquierda", color=(255, 0, 0))  # Texto rojo
+        elif cx < line_center:
+                   # Si la pelota está a la izquierda de la línea blanca, muestra el mensaje "Mover a la derecha"
+                   img.draw_string(cx + 10, cy - 20, "Mover a la derecha", color=(0, 0, 255))  # Texto azul
+        else:
+                   # Si la pelota está centrada en la línea blanca
+                   img.draw_string(cx + 10, cy - 20, "En el centro", color=(0, 255, 0))  # Texto verde
+
+        print(message)
+
+    # linea central
+    img.draw_line(160, 1, 160, 240, color=(255,255,255))
+
+
+    # Calcula las posiciones para dibujar el texto en la parte derecha
+    # text_width = 120  # Ajusta el tamaño de la fuente y el ancho del mensaje
+    # x_position = sensor.width() - text_width - 30  # 10 píxeles de margen a la derecha
+    # y_position = 20  # Puedes ajustar la posición vertical del mensaje
+
+    # Dibuja el mensaje en la parte derecha
+    # img.draw_string(x_position, y_position, message, color=(0, 0, 0))  # Texto en rojo
+
+    # Muestra la imagen en vivo
+    img.compress(quality=35)
