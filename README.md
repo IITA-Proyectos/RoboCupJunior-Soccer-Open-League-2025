@@ -6,10 +6,29 @@ Este es el repositorio del equipo IITA para la liga **Open** de RoboCupJunior So
 
 El equipo se dividió en subgrupos de trabajo para abordar distintas áreas del desarrollo:
 
-- **Dribbler**
-- **Simulador**
-- **Movilidad**
-- **OpenMV**
+grupo **Movilidad**:
+ - @Vale15-tb
+ - Mijael
+ - @vickyT049
+
+grupo **OpenMv**:
+ - @3liasCo
+ - @rafaelmoya2010
+ - Rosario
+
+grupo **Dribbler**:
+ - Lauriana
+ - Xiomara
+ - @Aczino593
+
+grupo **Control**:
+ - @Leandro284-AR
+ - Braian
+ - @ASH101-CODE
+
+Tutores:
+ - @Martii3141
+ - @sebalander
 
 📌 [Falta agregar un diagrama en bloques del sistema]
 
