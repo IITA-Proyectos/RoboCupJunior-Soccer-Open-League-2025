@@ -14,7 +14,7 @@ grupo **Movilidad**:
 grupo **OpenMv**:
  - @3liasCo
  - @rafaelmoya2010
- - Rosario
+ - @roma1keta
 
 grupo **Dribbler**:
  - @lauri-an
