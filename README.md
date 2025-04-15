@@ -8,7 +8,7 @@ El equipo se dividió en subgrupos de trabajo para abordar distintas áreas del 
 
 grupo **Movilidad**:
  - @Vale15-tb
- - Mijael
+ - @mijaelb78
  - @vickyT049
 
 grupo **OpenMv**:
@@ -17,13 +17,13 @@ grupo **OpenMv**:
  - Rosario
 
 grupo **Dribbler**:
- - Lauriana
- - Xiomara
+ - @lauri-an
+ - @xio02
  - @Aczino593
 
 grupo **Control**:
  - @Leandro284-AR
- - Braian
+ - @srmartbr17
  - @ASH101-CODE
 
 Tutores:
