@@ -2,7 +2,7 @@
 float sigma = 10.0;
 float rho = 28.0;
 float beta = 8.0 / 3.0;
-
+dfhdchcgh
 // --- Estado Inicial del Atractor ---
 float t = 0.0;
 float x = 0.1;
