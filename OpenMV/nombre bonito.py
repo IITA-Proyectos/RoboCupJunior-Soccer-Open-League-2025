@@ -1,46 +1,54 @@
-import sensor
-import image
-import time
-
-# Inicializa el sensor de la cámara
+import sensor, image, time
+import math
+# Inicializar la cámara
 sensor.reset()
-sensor.set_pixformat(sensor.RGB565)
-sensor.set_framesize(sensor.QVGA)
-sensor.skip_frames(time=2000)
-clock = time.clock()
-# Parámetros de color para la pelota (ajustar según el color de tu pelota)
-color = (30, 100, 15, 100, 15, 100)  # (min_l, max_l, min_a, max_a, min_b, max_b) para color en HSV
-# Define la posición inicial
-center_x = 0
-center_y = 0
+sensor.set_pixformat(sensor.RGB565)  # Formato de color RGB
+sensor.set_framesize(sensor.QVGA)    # Resolución 320x240
+sensor.skip_frames(time=2000)       # Esperar a que los ajustes se estabilicen
+sensor.set_auto_whitebal(False)     # Desactivar balance de blancos automático
+clock = time.clock()                # Para medir FPS
+
+# Definir umbrales para el color naranja en LAB (ajustar según necesidad)
+# Puedes usar el Tools -> Machine Vision -> Threshold Editor en el IDE OpenMV para encontrar los valores correctos
+orange_threshold = (30, 60, 20, 60, 10, 50)  # (L Min, L Max, A Min, A Max, B Min, B Max)
+
+def map_range(x, in_min, in_max, out_min, out_max):
+    return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
 
 while(True):
-    # Captura una imagen
-    img = sensor.snapshot()
+    clock.tick()
+    img = sensor.snapshot()         # Capturar imagen
+    # Dibujar línea vertical blanca centrada
+    img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
 
-    # Detecta los objetos del color especificado
-    blobs = img.find_blobs([color], pixels_threshold=100, area_threshold=100, merge=True)
+    m= 50
 
-    # Si se detecta una pelota
+    # Encontrar blobs (objetos) que coincidan con el color naranja
+    blobs = img.find_blobs([orange_threshold], pixels_threshold=100, area_threshold=100, merge=True)
+
     if blobs:
-        # Ordena los blobs por área (el más grande debería ser la pelota)
+        # Seleccionar el blob más grande (asumimos que es la pelota)
         largest_blob = max(blobs, key=lambda b: b.pixels())
 
-        # coordenadas
-        center_x = largest_blob.cx()
-        center_y = largest_blob.cy()
+        # Dibujar un rectángulo alrededor del blob detectado
+        img.draw_rectangle(largest_blob.rect(), color=(255, 0, 0))
 
-        # Dibuja un rectángulo alrededor del blob más grande
-        img.draw_rectangle(largest_blob.rect())
-        img.draw_cross(center_x, center_y)
+        # Dibujar una cruz en el centro del blob
+        img.draw_cross(largest_blob.cx(), largest_blob.cy(), color=(0, 255, 0))
 
-        # Imprime las coordenadas del centro del blob (pelota)
-        print("Centro de la pelota: x={}, y={}".format(center_x, center_y))
+        # Obtener coordenadas del centro
+        x, y = largest_blob.cx(), largest_blob.cy()
 
-m = int(input("Ingrese el valor de m(desde el centro de la pantalla hasta los pies de la camara: "))
-w = int(input("resolucion horizontal de la camara:"))
-h = int(input("resolucion vertical de la camara:"))
-a = math.atan((w-center_x)/(m-center_y+(h/2)))
-println(a)
-    # Muestra la imagen en vivo
-    img.compress(quality=35)
+        # Mostrar coordenadas en la terminal
+        print("Coordenadas Pelota Naranja: X = %d, Y = %d" % (x, y))
+
+        if largest_blob.cy()!=130:
+
+         a = math.atan((160-largest_blob.cx())/(m-largest_blob.cy()+120))
+         print("angulo", a)
+
+
+    # Mostrar FPS
+    print("FPS:", clock.fps())
+
+
