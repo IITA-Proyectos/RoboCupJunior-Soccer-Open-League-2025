@@ -64,3 +64,5 @@ Otros links útiles mencionados en ese documento:
   https://github.com/IITA-Proyectos/resources-robotics-and-machine-vision-resources  
 - 🎮 Tutoriales de fútbol virtual de Roboliga Argentina:  
   https://www.virtual.roboliga.ar/1_16_f-tbol.html
+- Ejercicios de MAtematicas:
+  https://mateslibres.com/
