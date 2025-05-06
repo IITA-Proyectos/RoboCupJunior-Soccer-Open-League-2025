@@ -21,7 +21,7 @@ while(True):
     # Dibujar línea vertical blanca centrada
     img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
 
-    m= 50
+    m= 160
 
     # Encontrar blobs (objetos) que coincidan con el color naranja
     blobs = img.find_blobs([orange_threshold], pixels_threshold=100, area_threshold=100, merge=True)
@@ -42,13 +42,23 @@ while(True):
         # Mostrar coordenadas en la terminal
         print("Coordenadas Pelota Naranja: X = %d, Y = %d" % (x, y))
 
-        if largest_blob.cy()!=130:
-
-         a = math.atan((160-largest_blob.cx())/(m-largest_blob.cy()+120))
-         print("angulo", a)
+        if largest_blob.cy()!=145:
+            a_rad = math.atan2((160-largest_blob.cx()),(m-largest_blob.cy()+120))
+            angulo = math.degrees(a_rad) 
+            print("angulo", abs(angulo))
+            
+            if angulo > 0:
+                sentido = 1
+                print(sentido)
+            elif angulo < 0:
+                sentido = 0
+                print(sentido)
+            else:
+                print("")     
+                
+                
 
 
     # Mostrar FPS
     print("FPS:", clock.fps())
-
-
+    
