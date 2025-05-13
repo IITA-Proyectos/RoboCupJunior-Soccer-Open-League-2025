@@ -22,3 +22,24 @@ digitalWrite(motorderecho1,HIGH);
 digitalWrite(motorderecho2,LOW);
 //avanza hacia adelante
 }
+//FUNCIONES
+void girarDerecha() {
+  digitalWrite(motorizquierdo1, HIGH);
+  digitalWrite(motorizquierdo2, LOW);
+void girarIzquierda(){
+digitalWrite(motorderecho1,HIGH);
+digitalWrite(motorderecho2,LOW);}
+void seguirAdelante(){
+digitalWrite(motorizquierdo1,HIGH);
+digitalWrite(motorizquierdo2,LOW);
+digitalWrite(motorderecho1,HIGH);
+digitalWrite(motorderecho2,LOW);
+}
+void haciaAtras(){
+digitalWrite(motorizquierdo1,LOW);
+digitalWrite(motorizquierdo2,HIGH);
+digitalWrite(motorderecho1,LOW);
+digitalWrite(motorderecho2,HIGH);
+
+}
+}
