@@ -23,10 +23,10 @@ digitalWrite(motorderecho2,LOW);
 //avanza hacia adelante
 }
 //FUNCIONES
-void girarDerecha() {
+void girarIzquierda() {
   digitalWrite(motorizquierdo1, HIGH);
   digitalWrite(motorizquierdo2, LOW);
-void girarIzquierda(){
+void girarDerecha(){
 digitalWrite(motorderecho1,HIGH);
 digitalWrite(motorderecho2,LOW);}
 void haciaAtras(){
@@ -40,6 +40,6 @@ digitalWrite(motorizquierdo1,LOW);
 digitalWrite(motorizquierdo2,HIGH);
 digitalWrite(motorderecho1,LOW);
 digitalWrite(motorderecho2,HIGH);
-//probar con ambos motores sino cambiar de nombre a la funcion adelante o atras
+//probar con ambos motores sino cambiar de nombre a la funcion adelante o atras, izquierda derecha
 }
 }
