@@ -40,6 +40,6 @@ digitalWrite(motorizquierdo1,LOW);
 digitalWrite(motorizquierdo2,HIGH);
 digitalWrite(motorderecho1,LOW);
 digitalWrite(motorderecho2,HIGH);
-
+//probar con ambos motores sino cambiar de nombre a la funcion adelante o atras
 }
 }
