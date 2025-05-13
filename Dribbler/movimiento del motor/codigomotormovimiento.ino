@@ -29,13 +29,13 @@ void girarDerecha() {
 void girarIzquierda(){
 digitalWrite(motorderecho1,HIGH);
 digitalWrite(motorderecho2,LOW);}
-void seguirAdelante(){
+void haciaAtras(){
 digitalWrite(motorizquierdo1,HIGH);
 digitalWrite(motorizquierdo2,LOW);
 digitalWrite(motorderecho1,HIGH);
 digitalWrite(motorderecho2,LOW);
 }
-void haciaAtras(){
+void seguirAdelante(){
 digitalWrite(motorizquierdo1,LOW);
 digitalWrite(motorizquierdo2,HIGH);
 digitalWrite(motorderecho1,LOW);
