@@ -43,3 +43,47 @@ digitalWrite(motorderecho2,HIGH);
 //probar con ambos motores sino cambiar de nombre a la funcion adelante o atras, izquierda derecha
 }
 }
+
+int motorizquierdo1=3;
+int motorizquierdo2=4;
+int motorderecho1=5;
+int motorderecho2=6;
+void setup() {
+  pinMode(motorizquierdo1,OUTPUT);
+  pinMode(motorizquierdo2,OUTPUT);
+  pinMode(motorderecho1,OUTPUT);
+  pinMode(motorderecho2,OUTPUT);
+
+}
+
+void girarAtrasIzquierdo() {
+  digitalWrite(motorizquierdo1, HIGH);
+  digitalWrite(motorizquierdo2, LOW);
+  delay(1000); // gira hacia atrás durante 1 segundo
+}
+
+
+void girarAdelanteIzquierdo(){
+digitalWrite(motorizquierdo1,LOW);
+digitalWrite(motorizquierdo2,HIGH);
+delay(1000);
+//va hacia adelante
+}
+
+
+void loop() {
+
+
+  
+girarAtrasIzquierdo();
+delay(1000);
+//gira hacia atras
+
+girarAdelanteIzquierdo();
+delay(1000);
+//va hacia adelante
+
+
+
+
+}
