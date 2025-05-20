@@ -1,0 +1,19 @@
+#include <Arduino.h>
+#include <zirconLib.h>
+
+void setup(void)
+{
+  Serial.begin(96000);
+  InitializeZircon();
+}
+
+int goal_direction =0;
+void loop(void)
+{
+  if (readButton(1) == 1){
+    goal_direction = readCompass(); 
+  } 
+  int direction = readCompass();
+
+  Serial.println("goal_direction: " + String(goal_direction) + "currect direction: " + String (direction));
+}
