@@ -18,15 +18,16 @@ def map_range(x, in_min, in_max, out_min, out_max):
 while(True):
     clock.tick()
     img = sensor.snapshot()         # Capturar imagen
-    # Dibujar línea vertical blanca centrada
-    img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
 
     m= 160
 
     # Encontrar blobs (objetos) que coincidan con el color naranja
     blobs = img.find_blobs([orange_threshold], pixels_threshold=100, area_threshold=100, merge=True)
 
+
     if blobs:
+        print("pelota encontrada")
+
         # Seleccionar el blob más grande (asumimos que es la pelota)
         largest_blob = max(blobs, key=lambda b: b.pixels())
 
@@ -40,25 +41,33 @@ while(True):
         x, y = largest_blob.cx(), largest_blob.cy()
 
         # Mostrar coordenadas en la terminal
-        print("Coordenadas Pelota Naranja: X = %d, Y = %d" % (x, y))
+        #print("Coordenadas Pelota Naranja: X = %d, Y = %d" % (x, y))
 
+        # Dibujar línea vertical blanca centrada
+        img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
+
+        #Mapear la cordenada x de [0,320] a [0,100]
+        posicion_mapeada_horiz = (100*largest_blob.cx())/320
+        print("posicion de x en map de [0,100]", abs(posicion_mapeada_horiz))
+
+        #CALCULO DEL ANGULO
         if largest_blob.cy()!=145:
             a_rad = math.atan2((160-largest_blob.cx()),(m-largest_blob.cy()+120))
-            angulo = math.degrees(a_rad) 
+            angulo = math.degrees(a_rad)
             print("angulo", abs(angulo))
-            
+
             if angulo > 0:
                 sentido = 1
-                print(sentido)
+                print("sentido", abs(sentido))
             elif angulo < 0:
                 sentido = 0
-                print(sentido)
+                print("sentido", abs(sentido))
             else:
-                print("")     
-                
-                
+                #pass
+                print("")
+
+
 
 
     # Mostrar FPS
-    print("FPS:", clock.fps())
-    
+    #print("FPS:", clock.fps())
