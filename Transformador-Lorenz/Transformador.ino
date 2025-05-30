@@ -1,52 +1,39 @@
+// se implementan dos atractores de lorentz para generar seis numeros con una dinamica
+// suave pero caotica. se los imprime por monitor serie 
+
+#include <SoftwareSerial.h>
+
+// instancia de SoftwareSerial
+// El primer parámetro es el pin RX, el segundo es el pin TX
+// Asegúrate de elegir pines que no sean los de Serial (0 y 1)
+// Por ejemplo, para un Arduino UNO, puedes usar 2 para RX y 3 para TX
+SoftwareSerial mySerial(15, 14); // Rx en pin 15 y TX en pin 14
+
+
 // --- Parámetros del Atractor de Lorenz ---
 float sigma = 10.0;
 float rho = 28.0;
 float beta = 8.0 / 3.0;
 
 // --- Estado Inicial del Atractor ---
-float t = 0.0;
-float x = 0.1;
-float y = 0.1;
-float z = 0.1;
-
-// --- Centro aproximado del atractor, se ira actualizando iterativamente ---
-float cx = 8.485;
-float cy = 8.485;
-float cz = 27.0;
-// pesos para actualizar el centro
-const float weight_old = 0.995;
-const float weight_new = 1 -weight_old;
+float x1 = 1.0; // valores iniciales distintos a los dos atractores
+float x2 = 2.0;
+float y1 = 3.0;
+float y2 = 4.0;
+float z1 = 30.0;
+float z2 = 31.0;
 
 // --- Factor de Tiempo y Frecuencia de Muestreo ---
 float timeStep = 0.01; // Este factor controla la velocidad de la simulación
-unsigned long sampleRateMillis = 40; // Frecuencia de muestreo en milisegundos (40 ms = 25 Hz)
+unsigned long sampleRateMillis = 2000; // Frecuencia de muestreo en milisegundos (40 ms = 25 Hz)
 unsigned long previousMillis = 0;
 
-// --- Estructura con las variables de esfericas ---
-struct Esfericas {
-  float r;      // distancia radial
-  float theta;  // ángulo polar en grados
-  float phi;    // ángulo azimutal en grados
-};
 
 void setup() {
   Serial.begin(9600); // Inicializar la comunicación serial
+  mySerial.begin(9600);  // Paso 3: Inicializa la comunicación con el puerto SoftwareSerial
   Serial.println("--- Inicialización del Simulador de Sensor ---");
   Serial.println("Atractor de Lorenz:");
-  Serial.print("  sigma = "); Serial.println(sigma);
-  Serial.print("  rho = "); Serial.println(rho);
-  Serial.print("  beta = "); Serial.println(beta);
-  Serial.print("  timeStep = "); Serial.println(timeStep);
-  Serial.print("  sampleRate = "); Serial.print(1000.0 / sampleRateMillis); Serial.println(" Hz");
-  Serial.println("Estado Inicial: x = 0.1, y = 0.1, z = 0.1");
-  Serial.println("--- Formato de Salida (Monitor Serie y RxTx) ---");
-  Serial.println("Formato NMEA: $IITAxxx,<tiempo>,<valor1>,<valor2>,<valor3>,CC\\r\\n");
-  Serial.println("Donde:");
-  Serial.println("  $IITAxxx: Identificador xxx del sensor simulado.");
-  Serial.println("  <tiempo>: Tiempo en milisegundos desde que se encendio el sensor.");
-  Serial.println("  <tipo>: Tipo de valores ('IITAORI' para originales x,y,z; 'IITATRA' para transformada a esfericas: radio,theta,phi).");
-  Serial.println("  <valor1>, <valor2>, <valor3>: Los valores numéricos.");
-  Serial.println("  CC: Placeholder para el checksum NMEA (ej: 00).");
 }
 
 void loop() {  
@@ -55,80 +42,94 @@ void loop() {
     previousMillis = currentMillis;
 
     // 1. Calcular el siguiente estado del Atractor de Lorenz
-    calcularLorenz();
+    calcularLorenz1();
+    calcularLorenz2();
 
-    // 2. Enviar los valores originales del atractor
-    enviarDatos("IITAORI", x, y, z);
-
-    // 3. Transformar a Vector (X, Y, Ángulo) y Enviar los valores transformados
-    // --- Transformación a coordenadas esfericas ---
-    Esfericas rTP = calcularEsfericas(x, y, z);
-
-    // --- Enviar los valores transformados ---
-    enviarDatos("IITATRA", rTP.r, rTP.theta, rTP.phi);
+    // 2. Enviar por uart
+    enviarDatos();
   }
 }
 
-// --- La dinamica del atractor de Lorentz ---
-void calcularLorenz() {
+// --- La dinamica del atractor de Lorentz 1 ---
+void calcularLorenz1() {
   // los incrementos
-  float dx = (sigma * (y - x)) * timeStep;
-  float dy = (x * (rho - z) - y) * timeStep;
-  float dz = (x * y - beta * z) * timeStep;
+  float dx = (sigma * (y1 - x1)) * timeStep;
+  float dy = (x1 * (rho - z1) - y1) * timeStep;
+  float dz = (x1 * y1 - beta * z1) * timeStep;
 
   // aplicar los incrementos con euler
-  x = x + dx;
-  y = y + dy;
-  z = z + dz;
-
-  // aplico el promedio movil para hacer la actualizacion del centro aproximado
-  cx = weight_old * cx + weight_new * x;
-  cy = weight_old * cy + weight_new * y;
-  cz = weight_old * cz + weight_new * z;
-
-  // guardar tiempo actual "wall clock" del cuando se simulo el dato (no es el tiempo simulado)
-  t = millis(); 
+  x1 = x1 + dx;
+  y1 = y1 + dy;
+  z1 = z1 + dz;
 }
 
-// --- Funcion que calcula las variables esfericas ---
-Esfericas calcularEsfericas(float x, float y, float z) {
-  // Vector trasladado al centro del atractor
-  float dx = x - cx;
-  float dy = y - cy;
-  float dz = z - cz;
+// --- La dinamica del atractor de Lorentz 2 ---
+void calcularLorenz2() {
+  // los incrementos
+  float dx = (sigma * (y2 - x2)) * timeStep;
+  float dy = (x2 * (rho - z2) - y2) * timeStep;
+  float dz = (x2 * y2 - beta * z2) * timeStep;
 
-  // Distancia radial
-  float r = sqrt(dx*dx + dy*dy + dz*dz);
+  // aplicar los incrementos con euler
+  x2 = x2 + dx;
+  y2 = y2 + dy;
+  z2 = z2 + dz;
+}
 
-  // Evitar división por cero
-  if (r == 0) {
-    return {0.0, 0.0, 0.0};
-  }
 
-  // Ángulo polar (theta): ángulo respecto al eje Z
-  float thetaRad = acos(dz / r);
-  float thetaDeg = thetaRad * 180.0 / PI;
+void enviarDatos() {
 
-  // Ángulo azimutal (phi): ángulo en el plano XY respecto al eje X
-  float phiRad = atan2(dy, dx);
-  float phiDeg = phiRad * 180.0 / PI;
+    
+    enviar(255, 0); // flag de inicio
   
-  // Asegurar que phi esté en [0, 360)
-  if (phiDeg < 0) {
-    phiDeg += 360.0;
-  }
+    uint8_t tag, value;
+    
+    // Transformar a la escala 0-200
+    // las coordenadas x,y de lorentz se convierten tal que el intervalo [-30,30] se mapea a [0,200]
+    // x -> (x + 30) / 0.3
+    // y -> (y + 30) / 0.3
+    // la coordenada z se convierte tal que el intervalo [0,60] se mapea a [0,200]
+    // z -> z / 0.3
 
-  return {r, thetaDeg, phiDeg};
+
+//    TAG  Nombre
+//    201 Pelota – coordenada X
+    tag = 201;
+    value = uint8_t((x1 + 30) / 0.3);
+    enviar(tag, value);
+
+//    202 Pelota – coordenada Y
+    tag = 202; 
+    value = uint8_t((y1 + 30) / 0.3);
+    enviar(tag, value);
+
+//    203 Arco enemigo – coordenada X
+    tag = 203; 
+    value = uint8_t(z1 / 0.3);
+    enviar(tag, value);
+
+//    204 Arco enemigo – coordenada Y
+    tag = 204; 
+    value = uint8_t((x2 + 30) / 0.3);
+    enviar(tag, value);
+
+//    205 Arco propio – coordenada X
+    tag = 205; 
+    value = uint8_t((y2 + 30) / 0.3);
+    enviar(tag, value);
+
+//    206 Arco propio – coordenada Y
+    tag = 206; 
+    value = uint8_t(z2 / 0.3);
+    enviar(tag, value);
+
+    
+    enviar(254, 0); // flag de fin
 }
 
-void enviarDatos(String tipo, float val1, float val2, float val3) {
-  String nmeaMessage = "$" + tipo + "," + String(t, 0) + "," + String(val1, 6) + "," + String(val2, 6) + "," + String(val3, 6) + "," + "00\r\n";
-  // Nota: Usamos String(valor, 6) para tener una precisión de 6 decimales.
-  // "00" es un checksum de ejemplo muy simple (inválido para la mayoría de los analizadores NMEA).
-  // TODO implementar un checksum?
-
-  Serial.print(nmeaMessage); // Mostrar en el monitor serie
-  for (int i = 0; i < nmeaMessage.length(); i++) {
-    Serial.write(nmeaMessage[i]); // Enviar por los pines RxTx // NOTE creo que esto sale tambien por el monitor serie? en mi arduino nano sale
+void enviar(uint8_t tag, uint8_t value){
+    Serial.println(tag);
+    Serial.println(value);
+    mySerial.println(tag);   // Enviar por UART
+    mySerial.println(value); // Enviar por UART
   }
-}
