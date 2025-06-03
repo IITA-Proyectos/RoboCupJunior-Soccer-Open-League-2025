@@ -1,0 +1,38 @@
+// MODO DELANTERO - BASE PARA CONEXIÓN CON OPENMV
+// Ayelén
+
+float angulo = 0.0;
+float distancia = 0.0;
+
+void setup() {
+  Serial.begin(9600); // Puerto serial para recibir desde OpenMV
+  Serial.println("Modo delantero listo. Esperando datos...");
+}
+
+void loop() {
+  // Simulamos recepción de datos desde OpenMV
+  if (Serial.available() >= 8) { // 2 float de 4 bytes = 8 bytes
+    Serial.readBytes((char*)&angulo, 4);     // Leer ángulo en grados
+    Serial.readBytes((char*)&distancia, 4);  // Leer distancia en cm
+
+    // Lógica de movimiento
+    if (abs(angulo) > 5) {
+      if (angulo > 0) {
+        Serial.println("Pelota a la derecha → Girar a la derecha");
+      } else {
+        Serial.println("Pelota a la izquierda → Girar a la izquierda");
+      }
+    } else if (distancia > 10) {
+      Serial.println("Pelota al frente → Avanzar");
+    } else {
+      Serial.println("Pelota cerca → Patear o empujar");
+    }
+
+    // Mostrar datos recibidos
+    Serial.print("Ángulo recibido: ");
+    Serial.print(angulo);
+    Serial.print("° | Distancia: ");
+    Serial.print(distancia);
+    Serial.println(" cm");
+  }
+}
