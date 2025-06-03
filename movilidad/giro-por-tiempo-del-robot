@@ -6,8 +6,15 @@ float tiempo;
 float girar (float tiempo) {
 
 tiempo = angulo * 0.075 / 90;
-
+motor1(100, 1);
+motor2(100, 1);
+motor3(100, 1);
 delay(girar);
+motor1(0, 1);
+motor2(0, 1);
+motor3(0, 1);
+delay(2000);
+
 
 
 return tiempo;
@@ -24,12 +31,6 @@ void loop(void)
 
 Serial.print("el angulo que gira es: " );
 Serial.println(girar(angulo));
-motor1(100, 1);
-motor2(100, 1);
-motor3(100, 1);
-delay(girar);
-motor1(0, 1);
-motor2(0, 1);
-motor3(0, 1);
-delay(2000);
+girar(angulo);
+
 }
