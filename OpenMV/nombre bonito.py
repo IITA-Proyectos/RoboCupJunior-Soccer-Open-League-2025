@@ -1,4 +1,6 @@
 import sensor, image, time
+import cv2
+import numpy as np
 import math
 # Inicializar la cámara
 sensor.reset()
@@ -38,17 +40,16 @@ while(True):
         img.draw_cross(largest_blob.cx(), largest_blob.cy(), color=(0, 255, 0))
 
         # Obtener coordenadas del centro
-        x, y = largest_blob.cx(), largest_blob.cy()
-
+        x, y = largest_blob.cx(), largest_blob.cy() 
+        
+        # Expresar las coordenadas de la pelota como punto 
+        pt_pelota = np.float32([[x, y]]).reshape(-1, 1, 2)
+        
         # Mostrar coordenadas en la terminal
         #print("Coordenadas Pelota Naranja: X = %d, Y = %d" % (x, y))
 
         # Dibujar línea vertical blanca centrada
         img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
-
-        #Mapear la cordenada x de [0,320] a [0,100]
-        posicion_mapeada_horiz = (100*largest_blob.cx())/320
-        print("posicion de x en map de [0,100]", abs(posicion_mapeada_horiz))
 
         #CALCULO DEL ANGULO
         if largest_blob.cy()!=145:
@@ -65,8 +66,15 @@ while(True):
             else:
                 #pass
                 print("")
-
-
+        #CALCULO DE DISTANCIA 
+        H = np.array([ [-2.18880937e-03, -2.63497709e-01, -2.44260579e+02]
+                       [ 1.02845724e+00,  1.44625829e-03, -1.92956221e+02]
+                       [ 4.01073113e-04, -5.44887132e-02,  1.00000000e+00]])
+        # Aplicar la transformación a la pelota 
+        crds_pelota_fisicas = cv2.perspectiveTransform(pt_pelota, H)
+        
+        print("Coordenadas físicas de la pelota:", crds_pelota_fisicas[0][0])
+        
 
 
     # Mostrar FPS
