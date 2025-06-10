@@ -1,38 +1,37 @@
-int serial1state = -1;
-int x_map   = 0;  // 0–100
-int ang180  = 90; // 0–180 (ángulo+90)
-int sentido = 0;  // 0 o 1
+int serial5state = -1;
+int x_map = 0;
+int ang = 0;
+int sentido = 0;
 
 void setup() {
-  Serial.begin(9600);      // para debug por USB
-  Serial1.begin(115200);   // UART1: RX1 ← TX de OpenMV
+  Serial.begin(115200);   // Consola USB
+  Serial1.begin(115200);  // UART conectado a OpenMV
 }
 
 void loop() {
-  // usar los valores recibidos aquí
-  // por ejemplo: mostrar por USB cada 200 ms
-  static uint32_t last = millis();
-  if (millis() - last >= 200) {
-    last = millis();
-    Serial.print("x_map=");   Serial.print(x_map);
-    Serial.print("  ang+90="); Serial.print(ang180);
-    Serial.print("  sentido="); Serial.println(sentido);
-  }
+  // Mostrar los valores cada 200 ms
+  Serial.print("x_map: "); Serial.print(x_map);
+  Serial.print(" | ang: "); Serial.print(ang);
+  Serial.print(" | sentido: "); Serial.println(sentido);
+  delay(200);
 }
 
 void serialEvent1() {
   while (Serial1.available()) {
     int data = Serial1.read();
+    Serial.print("Byte recibido: "); Serial.println(data);
 
-    // identificamos marcadores y preparamos para recibir el valor siguiente
-    if (data == 255)       serial1state = 0;  // siguiente byte es x_map
-    else if (data == 254)  serial1state = 1;  // siguiente byte es ang+90
-    else if (data == 253)  serial1state = 2;  // siguiente byte es sentido
-    else {
-      // guardamos valor según el marcador anterior
-      if      (serial1state == 0) x_map   = data;
-      else if (serial1state == 1) ang180  = data;
-      else if (serial1state == 2) sentido = data;
-    }
+    if (data == 255)
+      serial5state = 0;
+    else if (data == 254)
+      serial5state = 1;
+    else if (data == 253)
+      serial5state = 2;
+    else if (serial5state == 0)
+      x_map = data;
+    else if (serial5state == 1)
+      ang = data;
+    else if (serial5state == 2)
+      sentido = data;
   }
 }
