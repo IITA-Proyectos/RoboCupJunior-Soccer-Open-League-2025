@@ -1,0 +1,37 @@
+//Definicion de valores 
+const float ANGULO_REFERENCIA = 10.0; // en grados
+const float DISTANCIA_CRITICA = 20.0; // si la pelota está más cerca que esto, hay que despejar
+
+void setup() {
+  Serial.begin(9600); 
+  Serial.println("Modo arquero activado.");
+}
+
+void loop() {
+  float angulo = 0.0;
+  float distancia = 0.0;
+
+  //datos de  cámara (OpenMV)
+  if (Serial.available() >= 8) {
+    Serial.readBytes((char*)&angulo, 4);
+    Serial.readBytes((char*)&distancia, e4);
+
+    modoArquero(angulo, distancia); // Llamo  función de arquero
+  }
+}
+
+// función principal del arquero
+void modoArquero(float angulo, float distancia) {
+  // Calculo cuánto me tengo que mover para alinearme con la pelota
+  float desplazamiento = distancia * tan(radians(angulo));
+
+ 
+  moverLateral(desplazamiento);
+
+  // pelota muy cerca del arco,  despejar
+  if (distancia < DISTANCIA_CRITICA) {
+    Serial.println("La pelota está cerca del arco → pateo");
+    patear(); // Esto lo hace Rosario
+  }
+
+  
