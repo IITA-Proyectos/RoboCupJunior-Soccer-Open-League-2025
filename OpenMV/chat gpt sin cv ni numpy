@@ -1,0 +1,57 @@
+import sensor, image, time, math
+
+# Inicializar la cámara
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)  # Formato de color RGB
+sensor.set_framesize(sensor.QVGA)    # Resolución 320x240
+sensor.skip_frames(time=2000)        # Esperar a que los ajustes se estabilicen
+sensor.set_auto_whitebal(False)      # Desactivar balance de blancos automático
+clock = time.clock()                 # Para medir FPS
+
+# Umbral de color para naranja en LAB
+orange_threshold = (30, 60, 20, 60, 10, 50)
+
+# Matriz de homografía (3x3)
+H = [
+    [-0.00218880937, -0.263497709, -244.260579],
+    [ 1.02845724,     0.00144625829, -192.956221],
+    [ 0.000401073113, -0.0544887132, 1.0]
+]
+
+# Función para aplicar la transformación de perspectiva (homografía)
+def aplicar_homografia(x, y, H):
+    denom = H[2][0]*x + H[2][1]*y + H[2][2]
+    x_real = (H[0][0]*x + H[0][1]*y + H[0][2]) / denom
+    y_real = (H[1][0]*x + H[1][1]*y + H[1][2]) / denom
+    return x_real, y_real
+
+# Función para mapear rango (no se está usando ahora, pero la dejo por si la necesitas)
+def map_range(x, in_min, in_max, out_min, out_max):
+    return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
+
+while(True):
+    clock.tick()
+    img = sensor.snapshot()
+
+    # Definición de constantes
+    m = 160  # Para calibrar cálculo de ángulo
+    h = 10   # Altura de la cámara (cm)
+    pi = math.pi
+    r = 13.5 / (pi * 2)  # Radio de la pelota (cm)
+
+    # Detección de blobs naranjas
+    blobs = img.find_blobs([orange_threshold], pixels_threshold=100, area_threshold=100, merge=True)
+
+    if blobs:
+        print("Pelota encontrada")
+
+        # Blob más grande
+        largest_blob = max(blobs, key=lambda b: b.pixels())
+
+        # Dibujar en la imagen
+        img.draw_rectangle(largest_blob.rect(), color=(255, 0, 0))
+        img.draw_cross(largest_blob.cx(), largest_blob.cy(), color=(0, 255, 0))
+        img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
+
+        # Coordenadas del centro del blob ajustadas
+        
