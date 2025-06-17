@@ -1,7 +1,6 @@
 import sensor, image, time
-import cv2
-import numpy as np
 import math
+
 # Inicializar la cámara
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)  # Formato de color RGB
@@ -10,25 +9,39 @@ sensor.skip_frames(time=2000)       # Esperar a que los ajustes se estabilicen
 sensor.set_auto_whitebal(False)     # Desactivar balance de blancos automático
 clock = time.clock()                # Para medir FPS
 
+# Definición de constantes
+h = 10   # Altura de la cámara (cm)
+pi = math.pi
+r = 13.5 / (pi * 2)  # Radio de la pelota (cm)
+
 # Definir umbrales para el color naranja en LAB (ajustar según necesidad)
-# Puedes usar el Tools -> Machine Vision -> Threshold Editor en el IDE OpenMV para encontrar los valores correctos
 orange_threshold = (30, 60, 20, 60, 10, 50)  # (L Min, L Max, A Min, A Max, B Min, B Max)
 
 def map_range(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
 
+def transformarcoordenadas(u, v):
+    # Matriz de transformación homográfica (ajustar según tu calibración)
+    H = [[-2.18880937e-03, -2.63497709e-01, -2.44260579e+02],
+         [1.02845724e+00,  1.44625829e-03, -1.92956221e+02],
+         [4.01073113e-04, -5.44887132e-02,  1.00000000e+00]]
+    
+    # Aplicar transformación homográfica manualmente
+    denominator = H[2][0]*u + H[2][1]*v + H[2][2]
+    x = (H[0][0]*u + H[0][1]*v + H[0][2]) / denominator
+    y = (H[1][0]*u + H[1][1]*v + H[1][2]) / denominator
+    
+    return x, y
+
 while(True):
     clock.tick()
     img = sensor.snapshot()         # Capturar imagen
 
-    m= 160
-
     # Encontrar blobs (objetos) que coincidan con el color naranja
     blobs = img.find_blobs([orange_threshold], pixels_threshold=100, area_threshold=100, merge=True)
 
-
     if blobs:
-        print("pelota encontrada")
+        print("Pelota encontrada")
 
         # Seleccionar el blob más grande (asumimos que es la pelota)
         largest_blob = max(blobs, key=lambda b: b.pixels())
@@ -40,42 +53,34 @@ while(True):
         img.draw_cross(largest_blob.cx(), largest_blob.cy(), color=(0, 255, 0))
 
         # Obtener coordenadas del centro
-        x, y = largest_blob.cx(), largest_blob.cy() 
+        u, v = largest_blob.cx(), largest_blob.cy()
         
-        # Expresar las coordenadas de la pelota como punto 
-        pt_pelota = np.float32([[x, y]]).reshape(-1, 1, 2)
+        #CALCULAR DISTANCIA 
+        # Transformar a centímetros
+        x, y = transformarcoordenadas(u, v) 
         
-        # Mostrar coordenadas en la terminal
-        #print("Coordenadas Pelota Naranja: X = %d, Y = %d" % (x, y))
+        X = x * (h - r) / h
+        Y = y * (h - r) / h
 
+        print("Coordenadas físicas de la pelota: (%.2f, %.2f)" % (X, Y))
+
+        #CALCULAR ANGULO 
         # Dibujar línea vertical blanca centrada
         img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
-
-        #CALCULO DEL ANGULO
-        if largest_blob.cy()!=145:
-            a_rad = math.atan2((160-largest_blob.cx()),(m-largest_blob.cy()+120))
+        
+        if x!=0:
+            a_rad = math.atan2(Y,X)
             angulo = math.degrees(a_rad)
             print("angulo", abs(angulo))
-
+        
             if angulo > 0:
-                sentido = 1
-                print("sentido", abs(sentido))
+                        sentido = 1
+                        print("sentido", abs(sentido))
             elif angulo < 0:
-                sentido = 0
-                print("sentido", abs(sentido))
+                        sentido = 0
+                        print("sentido", abs(sentido))
             else:
-                #pass
-                print("")
-        #CALCULO DE DISTANCIA 
-        H = np.array([ [-2.18880937e-03, -2.63497709e-01, -2.44260579e+02]
-                       [ 1.02845724e+00,  1.44625829e-03, -1.92956221e+02]
-                       [ 4.01073113e-04, -5.44887132e-02,  1.00000000e+00]])
-        # Aplicar la transformación a la pelota 
-        crds_pelota_fisicas = cv2.perspectiveTransform(pt_pelota, H)
-        
-        print("Coordenadas físicas de la pelota:", crds_pelota_fisicas[0][0])
-        
-
-
-    # Mostrar FPS
-    #print("FPS:", clock.fps())
+                        #pass
+                        print("")
+    # Mostrar FPS (opcional)
+    # print("FPS:", clock.fps())
