@@ -1,73 +1,88 @@
-int tipo_dato=-1;
+#include <Arduino.h>
 
-int posicion_x=0;
-int posicion_y=0;
-int distancia=0;
-int angulo=0;
+// Estados para indicar qué dato esperamos
+enum EstadoUART {
+  ESPERAR_TAG = -1,
+  ESPERAR_X = 201,
+  ESPERAR_Y = 202,
+  ESPERAR_ANG = 203,
+  ESPERAR_SENTIDO = 204
+};
 
-float posicion_x_cm=0;
-float posicion_y_cm=0;
-float distancia_pelota_cm=0;
-float angulo_pelota_grados=0;
+int estado = ESPERAR_TAG;
 
-void setup(){
-  Serial.begin(115200);
-  Serial.begin(115200);
+// Variables crudas (0–200)
+int rawX = 0;
+int rawY = 0;
+int rawAng = 0;
+int rawSentido = 0;
+
+// Variables físicas
+float X_cm = 0.0;       // 0–100 cm
+float Y_cm = 0.0;       // -50 a +50 cm
+float angulo_deg = 0.0; // -100 a +100 grados
+
+void setup() {
+  Serial.begin(115200);    // para debug por USB
+  Serial1.begin(115200);   // UART1 ← TX de OpenMV
 }
 
-void loop(){
-  Serial.print("Posicion x: ");
-  Serial.print(posicion_x_cm);
-  Serial.print("cm | ");
-  Serial.print("Posicion y: ");
-  Serial.print(posicion_y_cm);
-  Serial.print("cm | ");
-  Serial.print("Distancia: ");
-  Serial.print(distancia_pelota_cm);
-  Serial.print("cm | ");
-  Serial.print("Angulo: ");
-  Serial.print(angulo_pelota_grados);
-  Serial.print("grados:");
-  delay(10000);
+void loop() {
+  // Imprime cada 200 ms los valores convertidos
+  static uint32_t last = millis();
+  if (millis() - last >= 200) {
+    last = millis();
+    Serial.print("X = "); Serial.print(X_cm, 2); Serial.print(" cm | ");
+    Serial.print("Y = "); Serial.print(Y_cm, 2); Serial.print(" cm | ");
+    Serial.print("Ángulo = "); Serial.print(angulo_deg, 2); Serial.println("°");
+  }
 }
 
-void serialEvent1(){
-  while (Serial1.available()){
-    int byte_recibido=Serial1.read();
-    Serial.print("Byte recibido: ");
-  Serial.println(byte_recibido);
-    switch (byte_recibido){
-      case 201:
-        tipo_dato=1;
+// Se llama automáticamente cuando Serial1 recibe datos
+void serialEvent1() {
+  while (Serial1.available()) {
+    int b = Serial1.read();
+    
+    // ¿Es un TAG?
+    if (b == 201 || b == 202 || b == 203 || b == 204) {
+      estado = b;
+      continue;
+    }
+    
+    // Si no es TAG, es valor: procesamos según el estado actual
+    switch (estado) {
+      case ESPERAR_X:
+        rawX = b;
+        // conversión inversa de rawX (0–200) → X_cm (0–100 cm)
+        X_cm = rawX / 2.0;
         break;
-      case 202:
-        tipo_dato=2;
+        
+      case ESPERAR_Y:
+        rawY = b;
+        // rawY 0–200 → Y_cm en -50..+50 cm
+        Y_cm = rawY / 2.0 - 50.0;
         break;
-      case 203:
-        tipo_dato=3;
+        
+      case ESPERAR_ANG:
+        rawAng = b;
+        // rawAng 0–200 → -100..+100 grados
+        angulo_deg = rawAng - 100.0;
         break;
-      case 204:
-        tipo_dato=4;
+        
+      case ESPERAR_SENTIDO:
+        rawSentido = b;
+        // rawSentido es 0 o 1 → puedes usarlo según necesites
+        // por ejemplo, invertir signo de ángulo si es 0:
+        if (rawSentido == 0) angulo_deg = -fabs(angulo_deg);
+        else                angulo_deg = fabs(angulo_deg);
         break;
+        
       default:
-        if (tipo_dato==0){
-          posicion_x= byte_recibido;
-          posicion_x_cm= posicion_x/2.0;
-        }
-        else if (tipo_dato==1){
-          posicion_y= byte_recibido;
-          posicion_y_cm= posicion_y/2.0-50.0;
-        }
-        else if (tipo_dato==2){
-          distancia= byte_recibido;
-          distancia_pelota_cm= distancia*1.0;
-        }
-        else if (tipo_dato==3){
-          angulo= byte_recibido;
-          angulo_pelota_grados= angulo-100.0;
-        }
-        tipo_dato=-1;
+        // Si no estabas esperando nada, ignoramos
         break;
     }
+    
+    // Después de leer el valor, volvemos a esperar un TAG
+    estado = ESPERAR_TAG;
   }
 }
