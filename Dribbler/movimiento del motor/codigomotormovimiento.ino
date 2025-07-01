@@ -1,89 +1,27 @@
-int motorizquierdo1=3;
-int motorizquierdo2=4;
-int motorderecho1=5;
-int motorderecho2=6;
-void setup() {
-  pinMode(motorizquierdo1,OUTPUT);
-  pinMode(motorizquierdo2,OUTPUT);
-  pinMode(motorderecho1,OUTPUT);
-  pinMode(motorderecho2,OUTPUT);
+int IN1=2;
+int IN2=3;
+int ENA=4;
+
+void setup(){
+  pinMode(IN1,OUTPUT);
+   pinMode(IN2,OUTPUT);
+    pinMode(ENA,OUTPUT);
 }
+ void loop(){
+  digitalWrite(ENA,HIGH);
+  digitalWrite(IN1,LOW);
+  digitalWrite(IN2,HIGH);
+  delay(3000);
 
-void loop() {
-digitalWrite(motorizquierdo1,HIGH);
-digitalWrite(motorizquierdo2,LOW);
-// SI SOLO FUNCIONA UN LADO HARA UN GIRO a la derecha
-digitalWrite(motorderecho1,HIGH);
-digitalWrite(motorderecho2,LOW);
-//giro hacia la izquierda 
-digitalWrite(motorizquierdo1,HIGH);
-digitalWrite(motorizquierdo2,LOW);
-digitalWrite(motorderecho1,HIGH);
-digitalWrite(motorderecho2,LOW);
-//avanza hacia adelante
-}
-//FUNCIONES
-void girarIzquierda() {
-  digitalWrite(motorizquierdo1, HIGH);
-  digitalWrite(motorizquierdo2, LOW);
-void girarDerecha(){
-digitalWrite(motorderecho1,HIGH);
-digitalWrite(motorderecho2,LOW);}
-void haciaAtras(){
-digitalWrite(motorizquierdo1,HIGH);
-digitalWrite(motorizquierdo2,LOW);
-digitalWrite(motorderecho1,HIGH);
-digitalWrite(motorderecho2,LOW);
-}
-void seguirAdelante(){
-digitalWrite(motorizquierdo1,LOW);
-digitalWrite(motorizquierdo2,HIGH);
-digitalWrite(motorderecho1,LOW);
-digitalWrite(motorderecho2,HIGH);
-//probar con ambos motores sino cambiar de nombre a la funcion adelante o atras, izquierda derecha
-}
-}
+  digitalWrite(ENA,LOW);
+  delay(2000);
 
-int motorizquierdo1=3;
-int motorizquierdo2=4;
-int motorderecho1=5;
-int motorderecho2=6;
-void setup() {
-  pinMode(motorizquierdo1,OUTPUT);
-  pinMode(motorizquierdo2,OUTPUT);
-  pinMode(motorderecho1,OUTPUT);
-  pinMode(motorderecho2,OUTPUT);
-
-}
-
-void girarAtrasIzquierdo() {
-  digitalWrite(motorizquierdo1, HIGH);
-  digitalWrite(motorizquierdo2, LOW);
-  delay(1000); // gira hacia atrás durante 1 segundo
-}
+digitalWrite(ENA,HIGH);
+digitalWrite(IN1,LOW);
+digitalWrite(IN2,HIGH);
+delay(2000);
 
 
-void girarAdelanteIzquierdo(){
-digitalWrite(motorizquierdo1,LOW);
-digitalWrite(motorizquierdo2,HIGH);
-delay(1000);
-//va hacia adelante
-}
-
-
-void loop() {
-
-
-  
-girarAtrasIzquierdo();
-delay(1000);
-//gira hacia atras
-
-girarAdelanteIzquierdo();
-delay(1000);
-//va hacia adelante
-
-
-
-
-}
+digitalWrite(ENA,LOW);
+  delay(2000);
+ }
