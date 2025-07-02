@@ -2,8 +2,8 @@
 #include <zirconLib.h>
 
 float mover(float centimetros, int eje) {
-  float tiempo = (centimetros * 1000) / 59.7; // Convierte segundos a milisegundos
-
+  float tiempo = ((0.0598*centimetros)+0.3235)*1000; // Convierte segundos a milisegundos
+  Serial.println(tiempo);
   if (eje == 3) {
     motor1(100, 0);
     motor2(100, 1);
@@ -28,12 +28,36 @@ float mover(float centimetros, int eje) {
 
   return tiempo;
 }
+float angulo;
+float tiempo;
 
+float girar (float tiempo) {
+
+tiempo = angulo * 0.075 / 90;
+motor1(100, 1);
+motor2(100, 1);
+motor3(100, 1);
+delay(girar);
+motor1(0, 1);
+motor2(0, 1);
+motor3(0, 1);
+delay(2000);
+
+
+
+return tiempo;
+}
 void setup() {
-  InitializeZircon(); // Inicializa la librería Zircon
+  InitializeZircon(); // Inicializa la librería Zirco
+  Serial.begin(9600);
 }
 
 void loop() {
-  mover(80, 3); // Mueve el robot 80 cm hacia el eje 3 (adelante/atrás)
-  delay(2000);  // Espera 2 segundos antes del siguiente movimiento
+  mover(8, 1); // Mueve el robot 80 cm hacia el eje 3 (adelante/atrás)
+  girar (90);//ponemos el angulo que queremos movernos
+  mover(8, 1); // Mueve el robot 80 cm hacia el eje 3 (adelante/atrás)
+  girar (90);//ponemos el angulo que queremos movernos
+  mover(8, 1); // Mueve el robot 80 cm hacia el eje 3 (adelante/atrás) 
+  girar (90);//ponemos el angulo que queremos movernos
+  mover(8,1);
 }
