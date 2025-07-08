@@ -1,24 +1,24 @@
-int serial5state = -1;
+int serial3state = -1;
 int raw_x = 0;
 int raw_y = 0;
 int raw_ang = 0;
 int sentido = 0;
- 
+
 float x_cm = 0.0;
 float y_cm = 0.0;
 float angulo_deg = 0.0;
- 
+
 void setup() {
-  Serial.begin(115200);   // Monitor Serial
-  Serial1.begin(115200);  // UART conectado a OpenMV
+  Serial.begin(115200);   // Salida al Monitor Serial
+  Serial3.begin(115200);  // UART3 conectado a OpenMV (ajusta si usas otro puerto)
 }
- 
+
 void loop() {
   // Mostrar valores físicos cada 200 ms
   static unsigned long lastPrint = 0;
   if (millis() - lastPrint > 200) {
     lastPrint = millis();
- 
+
     Serial.print("x = "); Serial.print(x_cm, 2); Serial.print(" cm");
     Serial.print(" | y = "); Serial.print(y_cm, 2); Serial.print(" cm");
     Serial.print(" | ángulo = "); Serial.print(angulo_deg, 2); Serial.print("°");
@@ -26,40 +26,37 @@ void loop() {
   }
 }
 
-void serialEvent1() {
-  while (Serial1.available()) {
-    int data = Serial1.read();
- 
-    // Ver los bytes que llegan (opcional para debug)
-    // Serial.print("Byte recibido: "); Serial.println(data);
- 
-    // Identificar TAGs
+void serialEvent3() {  // ← Cambiar esto si usás otro puerto (Serial1, Serial2, etc.)
+  while (Serial3.available()) {
+    int data = Serial3.read();
+
     if (data == 201) {
-      serial5state = 0;  // x
+      serial3state = 0;  // Esperando byte de X
     } else if (data == 202) {
-      serial5state = 1;  // y
+      serial3state = 1;  // Esperando byte de Y
     } else if (data == 203) {
-      serial5state = 2;  // ángulo
+      serial3state = 2;  // Esperando byte de ángulo
     } else if (data == 204) {
-      serial5state = 3;  // sentido
-    }
- 
-    // Procesar datos según TAG
-    else {
-      if (serial5state == 0) {
-        raw_x = data;
-        x_cm = raw_x / 2.0;  // Conversión: x = v / 2
-      } else if (serial5state == 1) {
-        raw_y = data;
-        y_cm = raw_y / 2.0 - 50.0;  // Conversión: y = v / 2 - 50
-      } else if (serial5state == 2) {
-        raw_ang = data;
-        angulo_deg = raw_ang - 100.0;  // Conversión: ángulo = v - 100
-      } else if (serial5state == 3) {
-        sentido = data;
+      serial3state = 3;  // Esperando byte de sentido
+    } else {
+      switch (serial3state) {
+        case 0:
+          raw_x = data;
+          x_cm = raw_x / 2.0;
+          break;
+        case 1:
+          raw_y = data;
+          y_cm = (raw_y / 2.0) - 50.0;
+          break;
+        case 2:
+          raw_ang = data;
+          angulo_deg = raw_ang - 100.0;
+          break;
+        case 3:
+          sentido = data;
+          break;
       }
- 
-      serial5state = -1;  // Reset después de leer un valor
+      serial3state = -1;  // Reiniciar el estado luego de leer el valor
     }
   }
 }
