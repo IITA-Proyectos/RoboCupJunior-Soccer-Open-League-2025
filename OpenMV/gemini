@@ -15,7 +15,7 @@ const long BAUD_RATE = 115200;
 float decodedX = 0.0;
 float decodedY = 0.0;
 float decodedAngle = 0.0;
-int decodedSense = 0;
+int decodedSense = 0; // Variable para el sentido
 
 // Estados para la máquina de estados del decodificador
 enum DecoderState {
@@ -23,7 +23,7 @@ enum DecoderState {
   READING_BYTE_X,
   READING_BYTE_Y,
   READING_BYTE_ANGLE,
-  READING_SENTIDO
+  READING_SENTIDO // Nuevo estado para el sentido
 };
 
 DecoderState currentState = WAITING_FOR_HEADER;
@@ -45,49 +45,57 @@ void loop() {
   if (Serial1.available()) {
     int incomingByte = Serial1.read(); // Leer el byte entrante
 
+    // *** Importante para depuración: Imprimir cada byte recibido ***
+    Serial.print("Byte recibido: ");
+    Serial.println(incomingByte);
+
     // Máquina de estados para decodificar el paquete
     switch (currentState) {
       case WAITING_FOR_HEADER:
+        // Si el byte recibido es un encabezado, cambiar al estado de lectura de datos
         if (incomingByte == 201) {
           currentState = READING_BYTE_X;
         } else if (incomingByte == 202) {
           currentState = READING_BYTE_Y;
         } else if (incomingByte == 203) {
           currentState = READING_BYTE_ANGLE;
-        } else if (incomingByte == 204) {
+        } else if (incomingByte == 204) { // Encabezado para 'sentido'
           currentState = READING_SENTIDO;
         }
-        // Si no es un encabezado conocido, se mantiene en WAITING_FOR_HEADER y espera el siguiente byte
+        // Si el byte no es un encabezado conocido, se ignora y se espera el siguiente byte
         break;
 
       case READING_BYTE_X:
         // Decodificar X: byteX (0-200) -> X (0-100 cm)
         decodedX = (float)incomingByte / 2.0;
-        Serial.print("X (byte): "); Serial.print(incomingByte);
+        Serial.print("  -> X (byte): "); Serial.print(incomingByte);
         Serial.print(" -> X (cm): "); Serial.println(decodedX, 2); // Imprimir con 2 decimales
         currentState = WAITING_FOR_HEADER; // Volver a esperar un encabezado
         break;
 
       case READING_BYTE_Y:
         // Decodificar Y: byteY (0-200) -> Y (-50 a 50 cm)
+        // La fórmula de tu OpenMV es (Y + 50) * 2, así que la inversa es (byteY / 2) - 50
         decodedY = ((float)incomingByte / 2.0) - 50.0;
-        Serial.print("Y (byte): "); Serial.print(incomingByte);
+        Serial.print("  -> Y (byte): "); Serial.print(incomingByte);
         Serial.print(" -> Y (cm): "); Serial.println(decodedY, 2);
         currentState = WAITING_FOR_HEADER;
         break;
 
       case READING_BYTE_ANGLE:
         // Decodificar Ángulo: byteAng (0-200) -> Ángulo (-100 a 100 grados)
+        // La fórmula de tu OpenMV es angulo + 100, así que la inversa es byteAng - 100
         decodedAngle = (float)incomingByte - 100.0;
-        Serial.print("Angulo (byte): "); Serial.print(incomingByte);
+        Serial.print("  -> Angulo (byte): "); Serial.print(incomingByte);
         Serial.print(" -> Angulo (grados): "); Serial.println(decodedAngle, 2);
         currentState = WAITING_FOR_HEADER;
         break;
 
       case READING_SENTIDO:
         // Decodificar Sentido: sentido (0 o 1)
+        // El valor se envía directamente, no necesita escalado inverso
         decodedSense = incomingByte;
-        Serial.print("Sentido (byte): "); Serial.print(incomingByte);
+        Serial.print("  -> Sentido (byte): "); Serial.print(incomingByte);
         Serial.print(" -> Sentido: "); Serial.println(decodedSense);
         Serial.println("--- Paquete completo decodificado ---"); // Indicador de paquete completo
         currentState = WAITING_FOR_HEADER;
