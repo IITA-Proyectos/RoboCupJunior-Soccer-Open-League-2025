@@ -66,3 +66,4 @@ Otros links útiles mencionados en ese documento:
   https://www.virtual.roboliga.ar/1_16_f-tbol.html
 - Ejercicios de MAtematicas:
   https://mateslibres.com/
+- Balogh, Richard & Obdržálek, David. (2019). Using Finite State Machines in Introductory Robotics: Methods and Applications for Teaching and Learning. 10.1007/978-3-319-97085-1_9.
