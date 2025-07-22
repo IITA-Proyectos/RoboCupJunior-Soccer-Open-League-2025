@@ -4,7 +4,7 @@ int sentido=1;
 float tiempo;
 float asda
 float mover (float centrimetros, int eje) {
-  float tiempo = centimetros  s *1000 / 59,7
+  float tiempo = ((0.0598*centimetros)+0.3235)*1000; // Convierte segundos a milisegundos
   if (eje==3){
   motor1(100, 0);
   motor2(100, 1);
