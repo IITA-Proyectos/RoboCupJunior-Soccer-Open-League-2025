@@ -1,0 +1,19 @@
+codigo del rele y solenoide 
+
+
+int relayPin = 7;  // Pin conectado a IN del módulo relay
+
+void setup() {
+  pinMode(relayPin, OUTPUT);
+  digitalWrite(relayPin, HIGH); // Relay apagado al inicio (activa con LOW normalmente)
+}
+
+void loop() {
+  // Activar el solenoide por 2 segundos
+  digitalWrite(relayPin, LOW); // Relay activado
+  delay(2000);  
+
+  // Desactivarlo por 2 segundos
+  digitalWrite(relayPin, HIGH); // Relay apagado
+  delay(2000);  
+} 
