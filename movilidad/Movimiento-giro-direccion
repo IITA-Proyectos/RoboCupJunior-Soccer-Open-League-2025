@@ -1,0 +1,73 @@
+#include <Arduino.h>
+#include <zirconLib.h>
+
+float mover(float centimetros, int eje) {
+  float tiempo = ((0.0598*centimetros)+0.3235)*1000; // Convierte segundos a milisegundos
+  
+  if (eje == 3) {
+    motor1(100, 0);
+    motor2(100, 1);
+    delay(tiempo);
+    motor1(0, 0);
+    motor2(0, 1);
+  } 
+  else if (eje == 1) {
+    motor3(100, 0);
+    motor2(100, 1);
+    delay(tiempo);
+    motor3(0, 0);
+    motor2(0, 1);
+  } 
+  else if (eje == 2) {
+    motor3(100, 0);
+    motor1(100, 1);
+    delay(tiempo);
+    motor3(0, 0);
+    motor1(0, 1);
+  }
+
+  return tiempo;
+}
+float angulo;
+float tiempo;
+
+
+void girar_tiempo(float tiempo){
+motor1(100, 1);
+motor2(100, 1);
+motor3(100, 1);
+Serial.println(tiempo);
+delay(tiempo);
+motor1(0, 1);
+motor2(0, 1);
+motor3(0, 1);
+}
+
+
+float girar(float angulo) {
+Serial.println("comenzando funcion girar");
+float tiempo =angulo * 300/160;
+Serial.println(tiempo);
+girar_tiempo(tiempo);
+Serial.println("terminando funcion girar");
+return tiempo;
+}
+void setup() {
+  InitializeZircon(); // Inicializa la librería Zirco
+  Serial.begin(9600);
+}
+
+void loop() {
+  //mover(50, 1); // Mueve el robot 80 cm hacia el eje 3 (adelante/atrás)
+  
+  Serial.println("empezando el delay");
+  delay(2000);
+  Serial.println("terminando el delay");
+  
+  girar(180); //ponemos el tiempo de giro en ms
+  
+  Serial.println("empezando el delay");
+  delay(20000);
+  Serial.println("terminando el delay");
+  
+}
