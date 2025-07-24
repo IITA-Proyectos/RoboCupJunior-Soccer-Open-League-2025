@@ -77,12 +77,20 @@ translate([5,0,0]) punta_con_ojal();}
 }
 
 
+
+module lego_13(){import("./13.stl");}
+
+module lego_13_cut(){
+intersection(){
+translate([5, 1, 0]) lego_13();
+    cube([25, 10, 10]);
+}
+}
+
+
+
 // as reference a lego beam
 // https://www.printables.com/model/844733-lego-technic-beams-set-1-15/files
 // translate([0,-16,0]) import("./13.stl");
 
-// para testear, solo una parte del soporte para ver los orificios
-intersection(){
 soporte_nuevo();
-translate([0,-15, 0]) cube([100, 15, 9]);
-}
