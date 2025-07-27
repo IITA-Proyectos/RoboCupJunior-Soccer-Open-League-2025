@@ -71,40 +71,39 @@ while(True):
         # Dibujar línea vertical blanca centrada
         img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
         
-        if x!=0:
-            a_rad = math.atan2(Y,X)
-            angulo = math.degrees(a_rad)
-            print("angulo", abs(angulo))
+        a_rad = math.atan2(Y,X)
+        angulo = math.degrees(a_rad)
+        print("angulo", abs(angulo))
         
-            if angulo > 0:
-                        sentido = 1
-                        print("sentido", abs(sentido))
-            elif angulo < 0:
-                        sentido = 0
-                        print("sentido", abs(sentido))
-            else:
-                        #pass
-                        print("") 
+        if angulo > 0:
+                    sentido = 1
+                    print("sentido", abs(sentido))
+        elif angulo < 0:
+                    sentido = 0
+                    print("sentido", abs(sentido))
+        else:
+                    #pass
+                    print("") 
                         
-            #print("Coordenadas físicas: X = %.2f cm, Y = %.2f cm" % (X, Y))
-            #print("Ángulo: %.2f°  | Sentido:", angulo, sentido)
+        #print("Coordenadas físicas: X = %.2f cm, Y = %.2f cm" % (X, Y))
+        #print("Ángulo: %.2f°  | Sentido:", angulo, sentido)
                 
-            # ----------------------------
-            # ⚠️ Escalar a bytes (valores enteros entre 0–200)
-            byteX = min(max(int(X * 2), 0), 200)             # X → 0–100 cm → *2 → 0–200
-            byteY = min(max(int((Y + 50) * 2), 0), 200)      # Y → -50 a 50 → +50, *2 → 0–200
-            byteAng = min(max(int(angulo + 100), 0), 200)    # Ángulo → -100 a 100 → +100 → 0–200
+        # ----------------------------
+        # ⚠️ Escalar a bytes (valores enteros entre 0–200)
+        byteX = min(max(int(X * 2), 0), 200)             # X → 0–100 cm → *2 → 0–200
+        byteY = min(max(int((Y + 50) * 2), 0), 200)      # Y → -50 a 50 → +50, *2 → 0–200
+        byteAng = min(max(int(angulo + 100), 0), 200)    # Ángulo → -100 a 100 → +100 → 0–200
                 
-            # Armar paquete
-            packet = [
-            201, byteX,
-            202, byteY,
-            203, byteAng,
-            204, sentido
-            ]            
+        # Armar paquete
+        packet = [
+        201, byteX,
+        202, byteY,
+        203, byteAng,
+        204, sentido
+        ]            
                 
-            ("Enviando:", packet)
-            uart.write(bytearray(packet))
+        ("Enviando:", packet)
+        uart.write(bytearray(packet))
     
-    #Mostrar FPS (opcional)
-    #print("FPS:", clock.fps())
+#Mostrar FPS (opcional)
+#print("FPS:", clock.fps())
