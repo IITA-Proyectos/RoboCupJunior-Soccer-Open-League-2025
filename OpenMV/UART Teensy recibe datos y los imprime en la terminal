@@ -1,102 +1,108 @@
-from pyb import UART
-import sensor, image, time
-import math
+// Incluir la librería de Serial para Teensy
+#include <Arduino.h>
 
-# Comunicación UART
-uart = UART(3, 115200)
+// Definir los pines UART que se usarán. UART3 en OpenMV generalmente se mapea a Serial1 en Teensy.
+// Asegúrate de que los pines RX y TX en tu Teensy 4.1 estén conectados correctamente a los pines TX y RX del OpenMV.
+// Para Teensy 4.1, Serial1 usa pines 0 (RX1) y 1 (TX1).
+// Si necesitas usar otro puerto serial, como Serial2, Serial3, etc., consulta el pinout de tu Teensy 4.1.
+#define RX_PIN 0 // Pin RX1 en Teensy 4.1
+#define TX_PIN 1 // Pin TX1 en Teensy 4.1
 
-# Inicializar cámara
-sensor.reset()
-sensor.set_pixformat(sensor.RGB565)
-sensor.set_framesize(sensor.QVGA)
-sensor.skip_frames(time=2000)
-sensor.set_auto_whitebal(False)
-clock = time.clock()
+// Velocidad de comunicación serial (baudios)
+const long BAUD_RATE = 115200;
 
-# Constantes físicas
-h = 10   # Altura de la cámara en cm
-pi = math.pi
-r = 13.5 / (pi * 2)  # Radio de la pelota en cm
+// Variables para almacenar los datos decodificados
+float decodedX = 0.0;
+float decodedY = 0.0;
+float decodedAngle = 0.0;
+int decodedSense = 0; // Variable para el sentido
 
-# Threshold LAB para naranja (ajustar si hace falta)
-orange_threshold = (10, 70, 20, 60, 10, 50)
+// Estados para la máquina de estados del decodificador
+enum DecoderState {
+  WAITING_FOR_HEADER,
+  READING_BYTE_X,
+  READING_BYTE_Y,
+  READING_BYTE_ANGLE,
+  READING_SENTIDO // Nuevo estado para el sentido
+};
 
-# Matriz de homografía calibrada
-def transformarcoordenadas(u, v):
-    H = [[-2.18880937e-03, -2.63497709e-01, -2.44260579e+02],
-         [1.02845724e+00,  1.44625829e-03, -1.92956221e+02],
-         [4.01073113e-04, -5.44887132e-02,  1.00000000e+00]]
-    
-    denominator = H[2][0]*u + H[2][1]*v + H[2][2]
-    x = (H[0][0]*u + H[0][1]*v + H[0][2]) / denominator
-    y = (H[1][0]*u + H[1][1]*v + H[1][2]) / denominator
-    
-    return x, y
+DecoderState currentState = WAITING_FOR_HEADER;
 
-# Bucle principal
-while True:
-    clock.tick()
-    img = sensor.snapshot()
+void setup() {
+  // Inicializar la comunicación serial para depuración (monitor serial de Arduino IDE)
+  Serial.begin(BAUD_RATE);
+  while (!Serial && millis() < 5000); // Esperar a que el monitor serial se conecte (solo para placas con USB nativo)
+  Serial.println("Decodificador Teensy iniciado.");
 
-    # Buscar blobs del color naranja
-    blobs = img.find_blobs([orange_threshold], pixels_threshold=50, area_threshold=50, merge=True)
+  // Inicializar la comunicación serial para recibir datos del OpenMV
+  // Usamos Serial1 para UART3 del OpenMV
+  Serial1.begin(BAUD_RATE);
+  Serial.println("Serial1 (UART) iniciado.");
+}
 
-    pelota = None
-    mejor_roundness = 0
+void loop() {
+  // Comprobar si hay bytes disponibles para leer en el puerto serial del OpenMV
+  if (Serial1.available()) {
+    int incomingByte = Serial1.read(); // Leer el byte entrante
 
-    for blob in blobs:
-        redondez = blob.roundness()
-        elongacion = blob.elongation()
+    // *** Importante para depuración: Imprimir cada byte recibido ***
+    Serial.print("Byte recibido: ");
+    Serial.println(incomingByte);
 
-        # Filtrar por forma y tamaño
-        if redondez > 0.6 and elongacion < 1.4 and blob.pixels() > 80:
-            if redondez > mejor_roundness:
-                pelota = blob
-                mejor_roundness = redondez
+    // Máquina de estados para decodificar el paquete
+    switch (currentState) {
+      case WAITING_FOR_HEADER:
+        // Si el byte recibido es un encabezado, cambiar al estado de lectura de datos
+        if (incomingByte == 201) {
+          currentState = READING_BYTE_X;
+        } else if (incomingByte == 202) {
+          currentState = READING_BYTE_Y;
+        } else if (incomingByte == 203) {
+          currentState = READING_BYTE_ANGLE;
+        } else if (incomingByte == 204) { // Encabezado para 'sentido'
+          currentState = READING_SENTIDO;
+        }
+        // Si el byte no es un encabezado conocido, se ignora y se espera el siguiente byte
+        break;
 
-    if pelota:
-        print("Pelota detectada")
+      case READING_BYTE_X:
+        // Decodificar X: byteX (0-200) -> X (0-100 cm)
+        decodedX = (float)incomingByte / 2.0;
+        Serial.print("  -> X (byte): "); Serial.print(incomingByte);
+        Serial.print(" -> X (cm): "); Serial.println(decodedX, 2); // Imprimir con 2 decimales
+        currentState = WAITING_FOR_HEADER; // Volver a esperar un encabezado
+        break;
 
-        # Dibujo visual
-        img.draw_rectangle(pelota.rect(), color=(255, 0, 0))
-        img.draw_cross(pelota.cx(), pelota.cy(), color=(0, 255, 0))
-        img.draw_circle(pelota.cx(), pelota.cy(), int((pelota.w() + pelota.h()) / 4), color=(0, 0, 255))
+      case READING_BYTE_Y:
+        // Decodificar Y: byteY (0-200) -> Y (-50 a 50 cm)
+        // La fórmula de tu OpenMV es (Y + 50) * 2, así que la inversa es (byteY / 2) - 50
+        decodedY = ((float)incomingByte / 2.0) - 50.0;
+        Serial.print("  -> Y (byte): "); Serial.print(incomingByte);
+        Serial.print(" -> Y (cm): "); Serial.println(decodedY, 2);
+        currentState = WAITING_FOR_HEADER;
+        break;
 
-        # Coordenadas imagen
-        u, v = pelota.cx(), pelota.cy()
+      case READING_BYTE_ANGLE:
+        // Decodificar Ángulo: byteAng (0-200) -> Ángulo (-100 a 100 grados)
+        // La fórmula de tu OpenMV es angulo + 100, así que la inversa es byteAng - 100
+        decodedAngle = (float)incomingByte - 100.0;
+        Serial.print("  -> Angulo (byte): "); Serial.print(incomingByte);
+        Serial.print(" -> Angulo (grados): "); Serial.println(decodedAngle, 2);
+        currentState = WAITING_FOR_HEADER;
+        break;
 
-        # Transformar a coordenadas reales
-        x, y = transformarcoordenadas(u, v)
-        X = x * (h - r) / h
-        Y = y * (h - r) / h
-        print("Coordenadas físicas: X = %.2f cm, Y = %.2f cm" % (X, Y))
+      case READING_SENTIDO:
+        // Decodificar Sentido: sentido (0 o 1)
+        // El valor se envía directamente, no necesita escalado inverso
+        decodedSense = incomingByte;
+        Serial.print("  -> Sentido (byte): "); Serial.print(incomingByte);
+        Serial.print(" -> Sentido: "); Serial.println(decodedSense);
+        Serial.println("--- Paquete completo decodificado ---"); // Indicador de paquete completo
+        currentState = WAITING_FOR_HEADER;
+        break;
+    }
+  }
 
-        # Cálculo de ángulo
-        img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
-        a_rad = math.atan2(Y, X)
-        angulo = math.degrees(a_rad)
-        print("Ángulo:", angulo)
 
-        # Sentido: 1 = izquierda, 0 = derecha o centro
-        if angulo > 0:
-            sentido = 1
-        elif angulo < 0:
-            sentido = 0
-        else:
-            sentido = 0
 
-        # Escalar para transmisión por UART
-        byteX = min(max(int(X * 2), 0), 200)             # 0–100 cm → 0–200
-        byteY = min(max(int((Y + 50) * 2), 0), 200)      # -50 a +50 → 0–200
-        byteAng = min(max(int(angulo + 100), 0), 200)    # -100 a +100 → 0–200
-
-        # Enviar paquete
-        packet = [
-            201, byteX,
-            202, byteY,
-            203, byteAng,
-            204, sentido
-        ]
-
-        print("Enviando:", packet)
-        uart.write(bytearray(packet))
+}
