@@ -2,108 +2,101 @@ from pyb import UART
 import sensor, image, time
 import math
 
+# Comunicación UART
 uart = UART(3, 115200)
 
-# Inicializar la cámara
+# Inicializar cámara
 sensor.reset()
-sensor.set_pixformat(sensor.RGB565)  # Formato de color RGB
-sensor.set_framesize(sensor.QVGA)    # Resolución 320x240
-sensor.skip_frames(time=2000)       # Esperar a que los ajustes se estabilicen
-sensor.set_auto_whitebal(False)     # Desactivar balance de blancos automático
-clock = time.clock()                # Para medir FPS
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QVGA)
+sensor.skip_frames(time=2000)
+sensor.set_auto_whitebal(False)
+clock = time.clock()
 
-# Definición de constantes
-h = 10   # Altura de la cámara (cm)
+# Constantes físicas
+h = 10   # Altura de la cámara en cm
 pi = math.pi
-r = 13.5 / (pi * 2)  # Radio de la pelota (cm)
+r = 13.5 / (pi * 2)  # Radio de la pelota en cm
 
-# Definir umbrales para el color naranja en LAB (ajustar según necesidad)
-orange_threshold = (10, 70, 20, 60, 10, 50)  # (L Min, L Max, A Min, A Max, B Min, B Max)
+# Threshold LAB para naranja (ajustar si hace falta)
+orange_threshold = (10, 70, 20, 60, 10, 50)
 
-def map_range(x, in_min, in_max, out_min, out_max):
-    return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
-
+# Matriz de homografía calibrada
 def transformarcoordenadas(u, v):
-    # Matriz de transformación homográfica (ajustar según tu calibración)
     H = [[-2.18880937e-03, -2.63497709e-01, -2.44260579e+02],
          [1.02845724e+00,  1.44625829e-03, -1.92956221e+02],
          [4.01073113e-04, -5.44887132e-02,  1.00000000e+00]]
     
-    # Aplicar transformación homográfica manualmente
     denominator = H[2][0]*u + H[2][1]*v + H[2][2]
     x = (H[0][0]*u + H[0][1]*v + H[0][2]) / denominator
     y = (H[1][0]*u + H[1][1]*v + H[1][2]) / denominator
     
     return x, y
 
-while(True):
+# Bucle principal
+while True:
     clock.tick()
-    img = sensor.snapshot()         # Capturar imagen
+    img = sensor.snapshot()
 
-    # Encontrar blobs (objetos) que coincidan con el color naranja
-    blobs = img.find_blobs([orange_threshold], pixels_threshold=100, area_threshold=100, merge=True)
+    # Buscar blobs del color naranja
+    blobs = img.find_blobs([orange_threshold], pixels_threshold=50, area_threshold=50, merge=True)
 
-    if blobs:
-        print("Pelota encontrada")
+    pelota = None
+    mejor_roundness = 0
 
-        # Seleccionar el blob más grande (asumimos que es la pelota)
-        largest_blob = max(blobs, key=lambda b: b.pixels())
+    for blob in blobs:
+        redondez = blob.roundness()
+        elongacion = blob.elongation()
 
-        # Dibujar un rectángulo alrededor del blob detectado
-        img.draw_rectangle(largest_blob.rect(), color=(255, 0, 0))
+        # Filtrar por forma y tamaño
+        if redondez > 0.6 and elongacion < 1.4 and blob.pixels() > 80:
+            if redondez > mejor_roundness:
+                pelota = blob
+                mejor_roundness = redondez
 
-        # Dibujar una cruz en el centro del blob
-        img.draw_cross(largest_blob.cx(), largest_blob.cy(), color=(0, 255, 0))
+    if pelota:
+        print("Pelota detectada")
 
-        # Obtener coordenadas del centro
-        u, v = largest_blob.cx(), largest_blob.cy()
-        
-        #CALCULAR DISTANCIA 
-        # Transformar a centímetros
-        x, y = transformarcoordenadas(u, v) 
-        
+        # Dibujo visual
+        img.draw_rectangle(pelota.rect(), color=(255, 0, 0))
+        img.draw_cross(pelota.cx(), pelota.cy(), color=(0, 255, 0))
+        img.draw_circle(pelota.cx(), pelota.cy(), int((pelota.w() + pelota.h()) / 4), color=(0, 0, 255))
+
+        # Coordenadas imagen
+        u, v = pelota.cx(), pelota.cy()
+
+        # Transformar a coordenadas reales
+        x, y = transformarcoordenadas(u, v)
         X = x * (h - r) / h
         Y = y * (h - r) / h
+        print("Coordenadas físicas: X = %.2f cm, Y = %.2f cm" % (X, Y))
 
-        print("Coordenadas físicas de la pelota: (%.2f, %.2f)" % (X, Y))
-
-        #CALCULAR ANGULO 
-        # Dibujar línea vertical blanca centrada
+        # Cálculo de ángulo
         img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
-        
-        a_rad = math.atan2(Y,X)
+        a_rad = math.atan2(Y, X)
         angulo = math.degrees(a_rad)
-        print("angulo", abs(angulo))
-        
+        print("Ángulo:", angulo)
+
+        # Sentido: 1 = izquierda, 0 = derecha o centro
         if angulo > 0:
-                    sentido = 1
-                    print("sentido", abs(sentido))
+            sentido = 1
         elif angulo < 0:
-                    sentido = 0
-                    print("sentido", abs(sentido))
+            sentido = 0
         else:
-                    #pass
-                    print("") 
-                        
-        #print("Coordenadas físicas: X = %.2f cm, Y = %.2f cm" % (X, Y))
-        #print("Ángulo: %.2f°  | Sentido:", angulo, sentido)
-                
-        # ----------------------------
-        # ⚠️ Escalar a bytes (valores enteros entre 0–200)
-        byteX = min(max(int(X * 2), 0), 200)             # X → 0–100 cm → *2 → 0–200
-        byteY = min(max(int((Y + 50) * 2), 0), 200)      # Y → -50 a 50 → +50, *2 → 0–200
-        byteAng = min(max(int(angulo + 100), 0), 200)    # Ángulo → -100 a 100 → +100 → 0–200
-                
-        # Armar paquete
+            sentido = 0
+
+        # Escalar para transmisión por UART
+        byteX = min(max(int(X * 2), 0), 200)             # 0–100 cm → 0–200
+        byteY = min(max(int((Y + 50) * 2), 0), 200)      # -50 a +50 → 0–200
+        byteAng = min(max(int(angulo + 100), 0), 200)    # -100 a +100 → 0–200
+
+        # Enviar paquete
         packet = [
-        201, byteX,
-        202, byteY,
-        203, byteAng,
-        204, sentido
-        ]            
-                
-        ("Enviando:", packet)
+            201, byteX,
+            202, byteY,
+            203, byteAng,
+            204, sentido
+        ]
+
+        print("Enviando:", packet)
         uart.write(bytearray(packet))
-    
-#Mostrar FPS (opcional)
-#print("FPS:", clock.fps())
