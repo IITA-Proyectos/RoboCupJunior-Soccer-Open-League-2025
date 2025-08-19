@@ -1,0 +1,10 @@
+#ifndef movilidad.h
+#define movilidad.h
+#include <Arduino.h>
+#include <zirconLib.h>
+
+
+float mover(float centimetros, int eje);
+float girar(float angulo);
+
+#endif
