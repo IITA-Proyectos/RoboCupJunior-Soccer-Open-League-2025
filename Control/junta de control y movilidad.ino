@@ -1,27 +1,27 @@
 // Incluir la librería de Serial para Teensy
 #include <Arduino.h>
 #include <zirconLib.h>
-int potencia=50
+int potencia=90;
 
 float mover(float centimetros, int eje) {
   float tiempo = abs(((0.0654 * centimetros) - 0.1785) * 1000);
   if (centimetros >= 0) {
     if (eje == 3) {
-      motor1(100, 0);
+      motor1(100, 0);  //adelante   // izquierda 
       motor2(100, 1);
       delay(tiempo);
       motor1(0, 0);
       motor2(0, 1);
     }
     else if (eje == 1) {
-      motor3(100, 0);
+      motor3(100, 0);    //adelante   // al frente 
       motor2(100, 1);
       delay(tiempo);
       motor3(0, 0);
       motor2(0, 1);
     }
     else if (eje == 2) {
-      motor3(100, 0);
+      motor3(100, 0);    //adelante // derecha 
       motor1(100, 1);
       delay(tiempo);
       motor3(0, 0);
