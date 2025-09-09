@@ -1,0 +1,188 @@
+// Incluir la librería de Serial para Teensy
+#include <Arduino.h>
+#include <zirconLib.h>
+
+float mover(float centimetros, int eje) {
+  float tiempo = abs(((0.0654 * centimetros) - 0.1785) * 1000);
+  if (centimetros >= 0) {
+    if (eje == 3) {
+      motor1(100, 0);
+      motor2(100, 1);
+      delay(tiempo);
+      motor1(0, 0);
+      motor2(0, 1);
+    }
+    else if (eje == 1) {
+      motor3(100, 0);
+      motor2(100, 1);
+      delay(tiempo);
+      motor3(0, 0);
+      motor2(0, 1);
+    }
+    else if (eje == 2) {
+      motor3(100, 0);
+      motor1(100, 1);
+      delay(tiempo);
+      motor3(0, 0);
+      motor1(0, 1);
+    }
+  }
+  else
+  {
+    if (eje == 3) {
+      motor1(100, 1);
+      motor2(100, 0);
+      delay(tiempo);
+      motor1(0, 1);
+      motor2(0, 0);
+    }
+    else if (eje == 1) {
+      motor3(100, 1);
+      motor2(100, 0);
+      delay(tiempo);
+      motor3(0, 1);
+      motor2(0, 0);
+    }
+    else if (eje == 2) {
+      motor3(100, 1);
+      motor1(100, 0);
+      delay(tiempo);
+      motor3(0, 1);
+      motor1(0, 0);
+    }
+  }
+
+  return tiempo;
+}
+
+float girar(float angulo) {
+  float tiempo = abs(angulo * 50 / 47.0);
+
+  if (angulo > 0) { //esto se cambio....
+    motor1(100, 0);
+    motor2(100, 0);
+    motor3(100, 0);
+    delay(tiempo);
+    motor1(0, 0);
+    motor2(0, 0);
+    motor3(0, 0);
+  }
+  else
+  {
+    motor1(100, 1);
+    motor2(100, 1);
+    motor3(100, 1);
+    delay(tiempo);
+    motor1(0, 1);
+    motor2(0, 1);
+    motor3(0, 1);
+  }
+  return tiempo;
+}
+
+// Definir los pines UART que se usarán. UART3 en OpenMV generalmente se mapea a Serial1 en Teensy.
+// Asegúrate de que los pines RX y TX en tu Teensy 4.1 estén conectados correctamente a los pines TX y RX del OpenMV.
+// Para Teensy 4.1, Serial1 usa pines 0 (RX1) y 1 (TX1).
+// Si necesitas usar otro puerto serial, como Serial2, Serial3, etc., consulta el pinout de tu Teensy 4.1.
+#define RX_PIN 0 // Pin RX1 en Teensy 4.1
+#define TX_PIN 1 // Pin TX1 en Teensy 4.1
+
+// Velocidad de comunicación serial (baudios)
+const long BAUD_RATE = 19200;
+
+// Variables para almacenar los datos decodificados
+float decodedX = 0.0;
+float decodedY = 0.0;
+float decodedAngle = 0.0;
+int decodedSense = 0; // Variable para el sentido
+
+// Estados para la máquina de estados del decodificador
+enum DecoderState {
+  WAITING_FOR_HEADER,
+  READING_BYTE_X,
+  READING_BYTE_Y,
+  READING_BYTE_ANGLE,
+  READING_SENTIDO // Nuevo estado para el sentido
+};
+
+DecoderState currentState = WAITING_FOR_HEADER;
+
+void setup() {
+  InitializeZircon(); // Inicializa la librería Zirco
+
+  // Inicializar la comunicación serial para depuración (monitor serial de Arduino IDE)
+  Serial.begin(BAUD_RATE);
+  while (!Serial && millis() < 5000); // Esperar a que el monitor serial se conecte (solo para placas con USB nativo)
+  Serial.println("Decodificador Teensy iniciado.");
+
+  // Inicializar la comunicación serial para recibir datos del OpenMV
+  // Usamos Serial1 para UART3 del OpenMV
+  Serial1.begin(BAUD_RATE);
+  Serial.println("Serial1 (UART) iniciado.");
+}
+
+void loop() {
+  // Comprobar si hay bytes disponibles para leer en el puerto serial del OpenMV
+  if (Serial1.available()) {
+    int incomingByte = Serial1.read(); // Leer el byte entrante
+
+    // *** Importante para depuración: Imprimir cada byte recibido ***
+    Serial.print("Byte recibido: ");
+    Serial.println(incomingByte);
+
+    // Máquina de estados para decodificar el paquete
+    switch (currentState) {
+      case WAITING_FOR_HEADER:
+        // Si el byte recibido es un encabezado, cambiar al estado de lectura de datos
+        if (incomingByte == 201) {
+          currentState = READING_BYTE_X;
+        } else if (incomingByte == 202) {
+          currentState = READING_BYTE_Y;
+        } else if (incomingByte == 203) {
+          currentState = READING_BYTE_ANGLE;
+        } else if (incomingByte == 204) { // Encabezado para 'sentido'
+          currentState = READING_SENTIDO;
+        }
+        // Si el byte no es un encabezado conocido, se ignora y se espera el siguiente byte
+        break;
+
+      case READING_BYTE_X:
+        // Decodificar X: byteX (0-200) -> X (0-100 cm)
+        decodedX = (float)incomingByte / 2.0;
+        Serial.print("  -> X (byte): "); Serial.print(incomingByte);
+        Serial.print(" -> X (cm): "); Serial.println(decodedX, 2); // Imprimir con 2 decimales
+        currentState = WAITING_FOR_HEADER; // Volver a esperar un encabezado
+        break;
+
+      case READING_BYTE_Y:
+        // Decodificar Y: byteY (0-200) -> Y (-50 a 50 cm)
+        // La fórmula de tu OpenMV es (Y + 50) * 2, así que la inversa es (byteY / 2) - 50
+        decodedY = ((float)incomingByte / 2.0) - 50.0;
+        Serial.print("  -> Y (byte): "); Serial.print(incomingByte);
+        Serial.print(" -> Y (cm): "); Serial.println(decodedY, 2);
+        currentState = WAITING_FOR_HEADER;
+        break;
+
+      case READING_BYTE_ANGLE:
+        // Decodificar Ángulo: byteAng (0-200) -> Ángulo (-100 a 100 grados)
+        // La fórmula de tu OpenMV es angulo + 100, así que la inversa es byteAng - 100
+        decodedAngle = (float)incomingByte - 100.0;
+        Serial.print("  -> Angulo (byte): "); Serial.print(incomingByte);
+        Serial.print(" -> Angulo (grados): "); Serial.println(decodedAngle, 2);
+        girar(decodedAngle);
+        currentState = WAITING_FOR_HEADER;
+        break;
+
+      case READING_SENTIDO:
+        // Decodificar Sentido: sentido (0 o 1)
+        // El valor se envía directamente, no necesita escalado inverso
+        decodedSense = incomingByte;
+        Serial.print("  -> Sentido (byte): "); Serial.print(incomingByte);
+        Serial.print(" -> Sentido: "); Serial.println(decodedSense);
+        Serial.println("--- Paquete completo decodificado ---"); // Indicador de paquete completo
+        currentState = WAITING_FOR_HEADER;
+        break;
+     
+    }
+  }
+}
