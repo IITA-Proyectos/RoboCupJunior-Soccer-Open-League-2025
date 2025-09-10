@@ -2,7 +2,7 @@ from pyb import UART
 import sensor, image, time
 import math
 
-uart = UART(3, 115200)
+uart = UART(3, 19200)
 
 # Encender LED
 import pyb
@@ -29,7 +29,7 @@ sensor.set_auto_whitebal(False)     # Desactivar balance de blancos automático
 clock = time.clock()                # Para medir FPS
 
 # Definición de constantes
-h = 10   # Altura de la cámara (cm)
+h = 18.7   # Altura de la cámara (cm)
 pi = math.pi
 r = 13.5 / (pi * 2)  # Radio de la pelota (cm)
 
@@ -41,9 +41,9 @@ def map_range(x, in_min, in_max, out_min, out_max):
 
 def transformarcoordenadas(u, v):
     # Matriz de transformación homográfica (ajustar según tu calibración)
-    H = [[-2.18880937e-03, -2.63497709e-01, -2.44260579e+02],
-         [1.02845724e+00,  1.44625829e-03, -1.92956221e+02],
-         [4.01073113e-04, -5.44887132e-02,  1.00000000e+00]]
+    H = [[ 6.19780830e-02, -5.03123896e-01,  3.43223309e+02],
+         [-1.03328294e+00,  8.95598523e-02,  1.68119733e+02],
+         [ 2.82108774e-03,  4.85037991e-02,  1.00000000e+00]]
 
     # Aplicar transformación homográfica manualmente
     denominator = H[2][0]*u + H[2][1]*v + H[2][2]
@@ -83,7 +83,7 @@ while(True):
         X = x * (h - r) / h
         Y = y * (h - r) / h
 
-        print("Coordenadas físicas de la pelota: (%.2f, %.2f)" % (X, Y))
+        print(f"Coordenadas físicas de la pelota: {X, Y}")
 
         #CALCULAR ANGULO
         # Dibujar línea vertical blanca centrada
@@ -91,7 +91,7 @@ while(True):
 
         a_rad = math.atan2(Y,X)
         angulo = math.degrees(a_rad)
-        print("angulo", abs(angulo))
+        print(f"angulo: {angulo}")
 
         if angulo > 0:
                     sentido = 1
@@ -102,9 +102,6 @@ while(True):
         else:
                     #pass
                     print("")
-
-        #print("Coordenadas físicas: X = %.2f cm, Y = %.2f cm" % (X, Y))
-        #print("Ángulo: %.2f°  | Sentido:", angulo, sentido)
 
         # ----------------------------
         # ⚠️ Escalar a bytes (valores enteros entre 0–200)
@@ -120,7 +117,7 @@ while(True):
         204, sentido
         ]
 
-        ("Enviando:", packet)
+        print("Enviando:", packet)
         uart.write(bytearray(packet))
 
 #Mostrar FPS (opcional)
