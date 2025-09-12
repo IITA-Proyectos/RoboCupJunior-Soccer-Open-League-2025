@@ -41,9 +41,9 @@ def map_range(x, in_min, in_max, out_min, out_max):
 
 def transformarcoordenadas(u, v):
     # Matriz de transformación homográfica (ajustar según tu calibración)
-    H = [[ 6.19780830e-02, -5.03123896e-01,  3.43223309e+02],
-         [-1.03328294e+00,  8.95598523e-02,  1.68119733e+02],
-         [ 2.82108774e-03,  4.85037991e-02,  1.00000000e+00]]
+    H = [[ 4.49341044e-02, -9.48228474e-01,  7.78932109e+02],
+         [-2.39913185e+00, -5.65934886e-02,  3.91128921e+02],
+         [-1.81344856e-03,  1.15408531e-01,  1.00000000e+00]]
 
     # Aplicar transformación homográfica manualmente
     denominator = H[2][0]*u + H[2][1]*v + H[2][2]
@@ -120,5 +120,8 @@ while(True):
         print("Enviando:", packet)
         uart.write(bytearray(packet))
 
+# signo angulo 
+#    izquierda + 
+#    derecha - 
 #Mostrar FPS (opcional)
 #print("FPS:", clock.fps())
