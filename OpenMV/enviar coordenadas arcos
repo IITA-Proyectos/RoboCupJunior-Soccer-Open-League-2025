@@ -1,0 +1,157 @@
+from pyb import UART
+import sensor, image, time
+import math
+
+uart = UART(3, 19200)
+
+# Encender LED
+import pyb
+led_verde = pyb.LED(2)
+led_rojo = pyb.LED(1)
+led_azul = pyb.LED(3)
+
+# Secuencia de inicio de LEDs
+led_verde.on()
+time.sleep(0.5)
+led_verde.off()
+time.sleep(0.3)
+led_verde.on()
+time.sleep(0.4)
+led_verde.off()
+led_azul.on()
+time.sleep(0.2)
+led_azul.off()
+
+# Inicializar la cámara
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)
+sensor.set_framesize(sensor.QVGA)
+sensor.skip_frames(time=2000)
+sensor.set_auto_whitebal(False)
+clock = time.clock()
+
+# Definición de constantes
+h = 18.7   # Altura de la cámara (cm)
+pi = math.pi
+r = 13.5 / (pi * 2)  # Radio de la pelota (cm)
+
+# UMBRALES DE COLOR 
+orange_threshold = (10, 70, 20, 60, 10, 50)    # Naranja
+blue_threshold = (30, 80, -20, 10, -50, -10)   # Azul
+yellow_threshold = (50, 90, -20, 10, 20, 60)   # Amarillo
+
+def map_range(x, in_min, in_max, out_min, out_max):
+    return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
+
+def transformarcoordenadas(u, v):
+    H = [[ 4.49341044e-02, -9.48228474e-01,  7.78932109e+02],
+         [-2.39913185e+00, -5.65934886e-02,  3.91128921e+02],
+         [-1.81344856e-03,  1.15408531e-01,  1.00000000e+00]]
+    
+    denominator = H[2][0]*u + H[2][1]*v + H[2][2]
+    if abs(denominator) < 1e-6:
+        return 0, 0
+    
+    x = (H[0][0]*u + H[0][1]*v + H[0][2]) / denominator
+    y = (H[1][0]*u + H[1][1]*v + H[1][2]) / denominator
+    return x, y
+
+# Variables para tracking
+objeto_actual = 0
+ultimo_x, ultimo_y, ultimo_angulo = 0, 0, 0
+
+while(True):
+    clock.tick()
+    img = sensor.snapshot()
+    
+    # Apagar todos los LEDs al inicio
+    led_rojo.off()
+    led_azul.off()
+    led_verde.off()
+    
+    # DETECTAR TODOS LOS COLORES SIMULTÁNEAMENTE
+    orange_blobs = img.find_blobs([orange_threshold], pixels_threshold=100, area_threshold=100, merge=True)
+    blue_blobs = img.find_blobs([blue_threshold], pixels_threshold=100, area_threshold=100, merge=True)
+    yellow_blobs = img.find_blobs([yellow_threshold], pixels_threshold=100, area_threshold=100, merge=True)
+    
+    blob_detectado = None
+    objeto_seleccionado = 255  # 255 = nada detectado
+    
+    # SISTEMA DE PRIORIDADES
+    if orange_blobs:
+        print("Pelota naranja detectada")
+        largest_blob = max(orange_blobs, key=lambda b: b.pixels())
+        blob_detectado = largest_blob
+        objeto_seleccionado = 0
+        led_rojo.on()
+        
+    elif blue_blobs:
+        print("Objeto azul detectado")
+        largest_blob = max(blue_blobs, key=lambda b: b.pixels())
+        blob_detectado = largest_blob  
+        objeto_seleccionado = 1
+        led_azul.on()
+        
+    elif yellow_blobs:
+        print("Objeto amarillo detectado")
+        largest_blob = max(yellow_blobs, key=lambda b: b.pixels())
+        blob_detectado = largest_blob
+        objeto_seleccionado = 2
+        led_verde.on()
+    
+    # VISUALIZACIÓN DE TODOS LOS OBJETOS DETECTADOS
+    if orange_blobs:
+        for blob in orange_blobs:
+            img.draw_rectangle(blob.rect(), color=(255, 0, 0))
+    
+    if blue_blobs:
+        for blob in blue_blobs:
+            img.draw_rectangle(blob.rect(), color=(0, 0, 255))
+    
+    if yellow_blobs:
+        for blob in yellow_blobs:
+            img.draw_rectangle(blob.rect(), color=(255, 255, 0))
+    
+    # SI SE DETECTÓ ALGÚN OBJETO
+    if blob_detectado:
+      # Dibujar el objeto seleccionado
+      img.draw_rectangle(blob_detectado.rect(), color=(0, 255, 0), thickness=3)
+      img.draw_cross(blob_detectado.cx(), blob_detectado.cy(), color=(0, 255, 255), size=10, thickness=2)
+            
+      # Obtener coordenadas
+      u, v = blob_detectado.cx(), blob_detectado.cy()
+            
+      # Transformar coordenadas
+      x, y = transformarcoordenadas(u, v)
+      X = x * (h - r) / h
+      Y = y * (h - r) / h
+            
+      # Calcular ángulo (¡ESTO YA INDICA LA DIRECCIÓN!)
+      img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
+      a_rad = math.atan2(Y, X)
+      angulo = math.degrees(a_rad)
+            
+      # Guardar últimos valores válidos
+      ultimo_x, ultimo_y, ultimo_angulo = X, Y, angulo
+            
+      print(f"Objeto {objeto_seleccionado}: X={X:.1f}cm, Y={Y:.1f}cm, Angulo={angulo:.1f}°")
+            
+      # ESCALAR A BYTES
+      byteX = map_range(round(X), 0, 100, 0, 200)
+      byteY = map_range(round(Y), -50, 50, 0, 200)
+      byteAng = map_range(round(angulo), -100, 100, 0, 200)
+            
+      # ⚠️ PAQUETE SIMPLIFICADO SIN SENTIDO
+      packet = [
+        201, byteX,        # Coordenada X (0-200)
+        202, byteY,        # Coordenada Y (0-200) 
+        203, byteAng,      # Ángulo (0-200 = -100° a +100°)
+        205, objeto_seleccionado  # Tipo de objeto
+      ]
+            
+      uart.write(bytearray(packet))
+      print(f"Enviado: X={byteX}, Y={byteY}, Ang={byteAng}, Obj={objeto_seleccionado}")
+    
+    # Mostrar FPS ocasionalmente
+    # if clock.fps() > 0 and clock.frame_count() % 30 == 0:
+        # print(f"FPS: {clock.fps():.1f}")
