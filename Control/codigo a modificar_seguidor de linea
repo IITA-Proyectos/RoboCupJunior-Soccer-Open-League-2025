@@ -1,0 +1,68 @@
+Base a probar:
+
+#include <Arduino.h>
+#include <zirconLib.h>
+
+const int UMBRAL_BLANCO = 750; // Línea blanca
+const int UMBRAL_VERDE_MIN = 300; // verde (ajustar según valores reales)
+const int UMBRAL_VERDE_MAX = 700;
+
+int direccion = 1; // 1 = derecha, 0 = izquierda
+
+void setup(void) {
+Serial.begin(9600);
+InitializeZircon();
+}
+
+void loop(void) {
+int s1 = readLine(1); // Izquierda
+int s2 = readLine(2); // Centro
+int s3 = readLine(3); // Derecha
+
+Serial.print("S1: "); Serial.print(s1);
+Serial.print("\tS2: "); Serial.print(s2);
+Serial.print("\tS3: "); Serial.print(s3);
+
+bool blanco_izq = s1 > UMBRAL_BLANCO;
+bool blanco_der = s3 > UMBRAL_BLANCO;
+
+bool verde_izq = s1 >= UMBRAL_VERDE_MIN && s1 <= UMBRAL_VERDE_MAX;
+bool verde_cen = s2 >= UMBRAL_VERDE_MIN && s2 <= UMBRAL_VERDE_MAX;
+bool verde_der = s3 >= UMBRAL_VERDE_MIN && s3 <= UMBRAL_VERDE_MAX;
+
+if (blanco_izq && !blanco_der) {
+// cerca del borde izquierdo, girar a la derecha
+direccion = 1;
+motor1(100, 1); // Motor izquierdo atrás
+motor3(100, 0); // Motor derecho adelante
+Serial.print("\tGirando a la derecha");
+}
+else if (blanco_der && !blanco_izq) {
+// Cerca del borde derecho, girar a la izquierda
+direccion = 0;
+motor1(100, 0); // Motor izquierdo adelante
+motor3(100, 1); // Motor derecho atrás
+Serial.print("\tGirando a la izquierda");
+}
+else if (verde_izq && verde_cen && verde_der) {
+// Dentro del área, seguir patrullando en la dirección actual
+if (direccion == 1) {
+motor1(100, 1); // Ir a la derecha
+motor3(100, 1);
+Serial.print("\tPatrullando derecha");
+} else {
+motor1(100, 0); // Ir a la izquierda
+motor3(100, 0);
+Serial.print("\tPatrullando izquierda");
+}
+}
+else {
+// Caso inesperado (fuera del área, negro, etc.)
+motor1(0, 0);
+motor3(0, 0);
+Serial.print("\t[ALERTA] Fuera de zona segura");
+}
+
+Serial.println();
+delay(100);
+}
