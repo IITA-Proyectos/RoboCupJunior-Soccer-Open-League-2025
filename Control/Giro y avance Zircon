@@ -4,7 +4,7 @@
 int potencia=90;
 
 float mover(float centimetros, int eje) {
-  float tiempo = abs(((0.0654 * centimetros) - 0.1785) * 1000);
+  float tiempo = abs(centimetros*400/26.5);
   if (centimetros >= 0) {
     if (eje == 3) {
       motor1(100, 0);  //adelante   // izquierda 
@@ -122,9 +122,8 @@ void setup() {
   Serial.println("Serial1 (UART) iniciado.");
 }
 
-#define MARGEN_TOLERANCIA 10.0 // Esto puede ajustarse dependiendo de tu precisión deseada
-
 void loop() {
+  float MARGEN_TOLERANCIA = 5;
   // Comprobar si hay bytes disponibles para leer en el puerto serial del OpenMV
   if (Serial1.available()) {
     int incomingByte = Serial1.read(); // Leer el byte entrante
@@ -172,10 +171,6 @@ void loop() {
         decodedAngle = (float)incomingByte - 100.0;
         Serial.print("  -> Angulo (byte): "); Serial.print(incomingByte);
         Serial.print(" -> Angulo (grados): "); Serial.println(decodedAngle, 2);
-        girar(decodedAngle);
-        if (abs(decodedAngle) < MARGEN_TOLERANCIA) {
-          // Si está centrado, avanzar hacia la pelota
-          mover(decodedX,1);}
         currentState = WAITING_FOR_HEADER;
         break;
 
@@ -189,9 +184,25 @@ void loop() {
         currentState = WAITING_FOR_HEADER;
         break;
 
-      //if (abs(decodedAngle) < MARGEN_TOLERANCIA) {
-          // Si está centrado, avanzar hacia la pelota
-          //mover(decodedX,3);
     }
   }
+        girar(decodedAngle); 
+          if (abs(decodedAngle) < MARGEN_TOLERANCIA) {
+            Serial.println("centrado");
+          // Si está centrado, avanzar hacia la pelota
+           mover(decodedX,1);
+          }
+
+          
+           //if (decodedX > 0)
+           //{
+//            motor3(100, 0);    //adelante   // al frente 
+//            motor2(100, 1);
+//           }
+//           else
+//           {
+//           motor3(0, 0);
+//           motor2(0, 1);
+   //       }
+
 }
