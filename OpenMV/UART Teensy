@@ -1,0 +1,50 @@
+#include <Arduino.h>
+
+// Velocidad de comunicación serial (igual a la OpenMV)
+const long BAUD_RATE = 19200;
+
+// Variables decodificadas
+float decodedX = 0.0;
+float decodedY = 0.0;
+float decodedAngle = 0.0;
+int decodedSense = 0;
+
+void setup() {
+  Serial.begin(BAUD_RATE);       // Para depuración en el monitor serie
+  while (!Serial && millis() < 5000); 
+
+  Serial1.begin(BAUD_RATE);      // UART1: RX1=0, TX1=1 en la Teensy
+  Serial.println("Decodificador Teensy iniciado.");
+}
+
+void loop() {
+  // Espera a que haya al menos 8 bytes en el buffer
+  if (Serial1.available() >= 8) {
+    int header1 = Serial1.read();
+    int x = Serial1.read();
+    int header2 = Serial1.read();
+    int y = Serial1.read();
+    int header3 = Serial1.read();
+    int ang = Serial1.read();
+    int header4 = Serial1.read();
+    int sentido = Serial1.read();
+
+    // Validar encabezados
+    if (header1 == 201 && header2 == 202 && header3 == 203 && header4 == 204) {
+      // Decodificar
+      decodedX = x / 2.0;          // X en cm (0–100 aprox)
+      decodedY = (y / 2.0) - 50.0; // Y en cm (-50 a 50)
+      decodedAngle = ang - 100.0;  // Ángulo en grados (-100 a 100)
+      decodedSense = sentido;      // Sentido (0 o 1)
+
+      // Mostrar en monitor serie
+      Serial.print("X: "); Serial.print(decodedX);
+      Serial.print(" | Y: "); Serial.print(decodedY);
+      Serial.print(" | Ang: "); Serial.print(decodedAngle);
+      Serial.print(" | Sentido: "); Serial.println(decodedSense);
+    } else {
+      // Si los encabezados no coinciden, descartar paquete
+      Serial.println("Paquete inválido, descartado.");
+    }
+  }
+}
