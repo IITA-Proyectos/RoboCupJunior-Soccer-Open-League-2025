@@ -1,0 +1,152 @@
+#include <Arduino.h>
+#include <zirconLib.h>
+
+const long BAUD_RATE = 19200;
+int potencia = 90;
+
+// Estado del movimiento
+bool enMovimiento = false;
+unsigned long tiempoInicio = 0;
+unsigned long duracionMovimiento = 0;
+int tipoMovimiento = 0; // 1=mover, 2=girar
+int ejeMovimiento = 0;
+float direccionMovimiento = 0;
+
+void iniciarMovimiento(float centimetros, int eje) {
+  duracionMovimiento = abs(centimetros * 400 / 26.5);
+  tiempoInicio = millis();
+  tipoMovimiento = 1;
+  enMovimiento = true;
+  ejeMovimiento = eje;
+  direccionMovimiento = centimetros;
+
+  int dir = (centimetros >= 0) ? 0 : 1;
+
+  if (eje == 1) {
+    motor3(100, dir);
+    motor2(100, !dir);
+  } else if (eje == 2) {
+    motor3(100, dir);
+    motor1(100, !dir);
+  } else if (eje == 3) {
+    motor1(100, dir);
+    motor2(100, !dir);
+  }
+}
+
+void iniciarGiro(float angulo) {
+  duracionMovimiento = abs(angulo * 43 / 200);
+  tiempoInicio = millis();
+  tipoMovimiento = 2;
+  enMovimiento = true;
+  direccionMovimiento = angulo;
+
+  int dir = (angulo >= 0) ? 0 : 1;
+
+  motor1(potencia, dir);
+  motor2(potencia, dir);
+  motor3(potencia, dir);
+}
+
+void detenerMovimiento() {
+  // Apagar todos los motores
+  motor1(0, 0); motor1(0, 1);
+  motor2(0, 0); motor2(0, 1);
+  motor3(0, 0); motor3(0, 1);
+  enMovimiento = false;
+}
+
+float decodedX = 0.0;
+float decodedY = 0.0;
+float decodedAngle = 0.0;
+int decodedSense = 0;
+
+void setup() {
+  InitializeZircon();
+  Serial.begin(BAUD_RATE);
+  while (!Serial && millis() < 5000);
+
+  Serial1.begin(BAUD_RATE);
+  Serial.println("Decodificador Teensy iniciado.");
+}
+
+void loop() 
+{ iniciarGiro(decodedAngle);
+  // Si hay un movimiento en curso, verificar si ya terminó
+  if (enMovimiento) 
+  {
+      if (Serial1.available() >= 8) 
+      {
+        int header1 = Serial1.read();
+        int x = Serial1.read();
+        int header2 = Serial1.read();
+        int y = Serial1.read();
+        int header3 = Serial1.read();
+        int ang = Serial1.read();
+        int header4 = Serial1.read();
+        int sentido = Serial1.read();
+    
+        if (header1 == 201 && header2 == 202 && header3 == 203 && header4 == 204) 
+        {
+          decodedX = x / 2.0;
+          decodedY = (y / 2.0) - 50.0;
+          decodedAngle = ang - 100.0;
+          decodedSense = sentido;
+    
+          Serial.print("X: "); Serial.print(decodedX);
+          Serial.print(" | Y: "); Serial.print(decodedY);
+          Serial.print(" | Ang: "); Serial.print(decodedAngle);
+          Serial.print(" | Sentido: "); Serial.println(decodedSense);
+    
+          // Iniciar movimiento (por ejemplo en eje 1)
+          iniciarMovimiento(decodedX, 1);
+          // iniciarGiro(decodedAngle); // Descomenta si quieres girar
+        }
+        else 
+        {
+          Serial.println("Paquete inválido, descartado.");
+        }
+      }
+      // Si no hay movimiento, leer datos nuevos
+    if (millis() - tiempoInicio >= duracionMovimiento) 
+    {
+      Serial.println(duracionMovimiento);
+      detenerMovimiento();
+    }
+    return; // Evitar hacer otras cosas mientras se está moviendo
+  }
+
+  // Si no hay movimiento, leer datos nuevos
+  if (Serial1.available() >= 8) 
+  {
+    int header1 = Serial1.read();
+    int x = Serial1.read();
+    int header2 = Serial1.read();
+    int y = Serial1.read();
+    int header3 = Serial1.read();
+    int ang = Serial1.read();
+    int header4 = Serial1.read();
+    int sentido = Serial1.read();
+
+    if (header1 == 201 && header2 == 202 && header3 == 203 && header4 == 204) 
+    {
+      decodedX = x / 2.0;
+      decodedY = (y / 2.0) - 50.0;
+      decodedAngle = ang - 100.0;
+      decodedSense = sentido;
+
+      Serial.print("X: "); Serial.print(decodedX);
+      Serial.print(" | Y: "); Serial.print(decodedY);
+      Serial.print(" | Ang: "); Serial.print(decodedAngle);
+      Serial.print(" | Sentido: "); Serial.println(decodedSense);
+
+      // Iniciar movimiento (por ejemplo en eje 1)
+      iniciarMovimiento(decodedX, 1);
+      // iniciarGiro(decodedAngle); // Descomenta si quieres girar
+    }
+    else 
+    {
+      Serial.println("Paquete inválido, descartado.");
+    }
+  }
+}
