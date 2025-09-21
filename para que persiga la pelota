@@ -12,7 +12,7 @@ int decodedSense = 0;
 
 // Tolerancias (ajusta según precisión deseada)
 const float tolerancia_centrado = 6.0;   // grados
-const float tolerancia_cercania = 23.0;  // cm
+const float tolerancia_cercania = 20.0;  // cm
 
 // Estados del seguimiento
 enum TrackingState { BUSCANDO, GIRANDO, AVANZANDO };
@@ -36,7 +36,7 @@ void girar(float angulo) {
   motor3(potencia, direccionGiro);
 }
 
-void detenerMotores() 
+void detenerMotores()
 {
   motor1(0, 0); motor1(0, 1);
   motor2(0, 0); motor2(0, 1);
@@ -44,7 +44,7 @@ void detenerMotores()
   girando = false;
 }
 
-void setup() 
+void setup()
 {
   InitializeZircon();
   Serial.begin(BAUD_RATE);
@@ -53,16 +53,16 @@ void setup()
   Serial.println("Decodificador Teensy iniciado.");
 }
 
-void loop() 
+void loop()
 {
   // Finalizar giro si ya pasó el tiempo
-  if (girando && millis() - tiempoInicioGiro >= duracionGiro) 
+  if (girando && millis() - tiempoInicioGiro >= duracionGiro)
   {
     detenerMotores();
     girando = false;
 
     // Si el estado actual era GIRANDO, pasa a AVANZANDO
-    if (trackingState == GIRANDO && abs(decodedAngle) < tolerancia_centrado) 
+    if (trackingState == GIRANDO && abs(decodedAngle) < tolerancia_centrado)
     {
       trackingState = AVANZANDO;
     }
@@ -70,7 +70,7 @@ void loop()
   }
 
   // Leer paquete de OpenMV si no está girando
-  if (!girando && Serial1.available() >= 8) 
+  if (!girando && Serial1.available() >= 8)
   {
     int header1 = Serial1.read();
     int x = Serial1.read();
@@ -81,7 +81,7 @@ void loop()
     int header4 = Serial1.read();
     int sentido = Serial1.read();
 
-    if (header1 == 201 && header2 == 202 && header3 == 203 && header4 == 204) 
+    if (header1 == 201 && header2 == 202 && header3 == 203 && header4 == 204)
     {
       decodedX = x / 2.0;
       decodedY = (y / 2.0) - 50.0;
@@ -95,16 +95,16 @@ void loop()
       Serial.print(" | Sentido: "); Serial.println(decodedSense);
 
       // Lógica de seguimiento
-      switch (trackingState) 
+      switch (trackingState)
       {
         case BUSCANDO:
           Serial.println("Buscando pelota...");
-          
-          if (decodedX > 0) 
+
+          if (decodedX > 0)
           {
             trackingState = GIRANDO;
           }
-          else 
+          else
           {
             // Gira buscando pelota
             motor1(potencia, 0);
@@ -115,11 +115,11 @@ void loop()
 
         case GIRANDO:
           Serial.println("Girando hacia pelota...");
-          if (abs(decodedAngle) >= tolerancia_centrado) 
+          if (abs(decodedAngle) >= tolerancia_centrado)
           {
             girar(decodedAngle);
-          } 
-          else 
+          }
+          else
           {
             trackingState = AVANZANDO;
           }
@@ -127,20 +127,20 @@ void loop()
 
         case AVANZANDO:
           Serial.println("Avanzando hacia pelota...");
-          if (decodedX > tolerancia_cercania) 
+          if (decodedX > tolerancia_cercania)
           {
-            if (abs(decodedAngle) > tolerancia_centrado) 
+            if (abs(decodedAngle) > tolerancia_centrado)
             {
               trackingState = GIRANDO;  // Reajustar ángulo
-            } 
-            else 
+            }
+            else
             {
               // Avanzar al frente
               motor3(100, 0);
               motor2(100, 1);
             }
-          } 
-          else 
+          }
+          else
           {
             Serial.println("Pelota alcanzada.");
             detenerMotores();
@@ -148,11 +148,45 @@ void loop()
           }
           break;
       }
-
-    } 
-    else 
+    }
+    else
     {
+      // Paquete con headers incorrectos
       Serial.println("Paquete inválido, descartado.");
     }
+  }
+  else
+  {
+    // ➤ Comportamiento cuando no hay datos válidos:
+    // Gira 2 segundos, se detiene 1 segundo, y repite
+
+    static unsigned long tiempoAnterior = 0;
+    static bool estaGirandoBusqueda = false;
+    unsigned long ahora = millis();
+
+    if (estaGirandoBusqueda)
+    {
+      if (ahora - tiempoAnterior >= 500)
+      {
+        detenerMotores();
+        estaGirandoBusqueda = false;
+        tiempoAnterior = ahora;
+        Serial.println("Pausa 1 segundo...");
+      }
+    }
+    else
+    {
+      if (ahora - tiempoAnterior >= 500)
+      {
+        motor1(50, 0);
+        motor2(50, 0);
+        motor3(50, 0);
+        estaGirandoBusqueda = true;
+        tiempoAnterior = ahora;
+        Serial.println("Girando 2 segundos...");
+      }
+    }
+
+    Serial.println("Esperando paquete válido...");
   }
 }
