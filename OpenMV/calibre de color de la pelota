@@ -1,0 +1,127 @@
+from pyb import UART
+import sensor, image, time
+import math
+
+uart = UART(3, 19200)
+
+# Encender LED
+import pyb
+
+# Crea un objeto para el LED's.
+led_verde = pyb.LED(2)
+led_rojo = pyb.LED(1)
+
+# Enciende el LED verde.
+led_verde.on()
+time.sleep(0.5)
+led_verde.off()
+time.sleep(0.3)
+led_verde.on()
+time.sleep(0.4)
+led_verde.off()
+
+# Inicializar la cámara
+sensor.reset()
+sensor.set_pixformat(sensor.RGB565)  # Formato de color RGB
+sensor.set_framesize(sensor.QVGA)    # Resolución 320x240
+sensor.skip_frames(time=2000)       # Esperar a que los ajustes se estabilicen
+sensor.set_auto_whitebal(False)     # Desactivar balance de blancos automático
+clock = time.clock()                # Para medir FPS
+
+# Definición de constantes
+h = 18.7   # Altura de la cámara (cm)
+pi = math.pi
+r = 13.5 / (pi * 2)  # Radio de la pelota (cm)
+
+# Definir umbrales para el color naranja en LAB (ajustar según necesidad)
+orange_threshold = (16, 66, 20, 127, -128, 57)  # (L Min, L Max, A Min, A Max, B Min, B Max)
+
+def map_range(x, in_min, in_max, out_min, out_max):
+    return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
+
+def transformarcoordenadas(u, v):
+    # Matriz de transformación homográfica (ajustar según tu calibración)
+    H = [[ 4.49341044e-02, -9.48228474e-01,  7.78932109e+02],
+         [-2.39913185e+00, -5.65934886e-02,  3.91128921e+02],
+         [-1.81344856e-03,  1.15408531e-01,  1.00000000e+00]]
+
+    # Aplicar transformación homográfica manualmente
+    denominator = H[2][0]*u + H[2][1]*v + H[2][2]
+    x = (H[0][0]*u + H[0][1]*v + H[0][2]) / denominator
+    y = (H[1][0]*u + H[1][1]*v + H[1][2]) / denominator
+
+    return x, y
+
+while(True):
+    clock.tick()
+    img = sensor.snapshot()         # Capturar imagen
+
+    # Encontrar blobs (objetos) que coincidan con el color naranja
+    blobs = img.find_blobs([orange_threshold], pixels_threshold=100, area_threshold=100, merge=True)
+    led_rojo.off()
+
+    if blobs:
+        print("Pelota encontrada")
+        led_rojo.on()
+
+        # Seleccionar el blob más grande (asumimos que es la pelota)
+        largest_blob = max(blobs, key=lambda b: b.pixels())
+
+        # Dibujar un rectángulo alrededor del blob detectado
+        img.draw_rectangle(largest_blob.rect(), color=(255, 0, 0))
+
+        # Dibujar una cruz en el centro del blob
+        img.draw_cross(largest_blob.cx(), largest_blob.cy(), color=(0, 255, 0))
+
+        # Obtener coordenadas del centro
+        u, v = largest_blob.cx(), largest_blob.cy()
+
+        #CALCULAR DISTANCIA
+        # Transformar a centímetros
+        x, y = transformarcoordenadas(u, v)
+
+        X = x * (h - r) / h
+        Y = y * (h - r) / h
+
+        print(f"Coordenadas físicas de la pelota: {X, Y}")
+
+        #CALCULAR ANGULO
+        # Dibujar línea vertical blanca centrada
+        img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
+
+        a_rad = math.atan2(Y,X)
+        angulo = math.degrees(a_rad)
+        print(f"angulo: {angulo}")
+
+        if angulo > 0:
+                    sentido = 1
+                    print("sentido", abs(sentido))
+        elif angulo < 0:
+                    sentido = 0
+                    print("sentido", abs(sentido))
+        else:
+                    #pass
+                    print("")
+
+        # ----------------------------
+        # ⚠️ Escalar a bytes (valores enteros entre 0–200)
+        byteX = min(max(int(X * 2), 0), 200)             # X → 0–100 cm → *2 → 0–200
+        byteY = min(max(int((Y + 50) * 2), 0), 200)      # Y → -50 a 50 → +50, *2 → 0–200
+        byteAng = min(max(int(angulo + 100), 0), 200)    # Ángulo → -100 a 100 → +100 → 0–200
+
+        # Armar paquete
+        packet = [
+        201, byteX,
+        202, byteY,
+        203, byteAng,
+        204, sentido
+        ]
+
+        print("Enviando:", packet)
+        uart.write(bytearray(packet))
+
+# signo angulo 
+#    izquierda + 
+#    derecha - 
+#Mostrar FPS (opcional)
+#print("FPS:", clock.fps())
