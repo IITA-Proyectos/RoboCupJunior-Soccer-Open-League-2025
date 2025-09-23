@@ -36,6 +36,10 @@ void girar(float angulo) {
   motor3(potencia, direccionGiro);
 }
 
+
+
+
+
 void detenerMotores()
 {
   motor1(0, 0); motor1(0, 1);
@@ -43,6 +47,21 @@ void detenerMotores()
   motor3(0, 0); motor3(0, 1);
   girando = false;
 }
+
+void avanzarAlFrente(){
+  motor3(100, 0);
+  motor2(100, 1);
+}
+
+
+
+
+
+
+
+
+
+
 
 void setup()
 {
@@ -53,140 +72,108 @@ void setup()
   Serial.println("Decodificador Teensy iniciado.");
 }
 
+
+
+
+
+
+
+
+
+
 void loop()
 {
-  // Finalizar giro si ya pasó el tiempo
-  if (girando && millis() - tiempoInicioGiro >= duracionGiro)
-  {
-    detenerMotores();
-    girando = false;
 
-    // Si el estado actual era GIRANDO, pasa a AVANZANDO
-    if (trackingState == GIRANDO && abs(decodedAngle) < tolerancia_centrado)
-    {
-      trackingState = AVANZANDO;
-    }
-    return;
-  }
+  //Estados del Robot
+  switch (TrackingState)
+    case BUSCANDO:
+    
+      girar(5);
+      //descanso
+      int tiempoFinalGiro = millis();
+      if(millis() - tiempoFinalGiro < 200)
+       {
+        detenerMotores();
+       }
+      break;
+    
+    
+    case GIRANDO:
+      girar(decodedAngle);
+      break;
 
-  // Leer paquete de OpenMV si no está girando
-  if (!girando && Serial1.available() >= 8)
-  {
-    int header1 = Serial1.read();
-    int x = Serial1.read();
-    int header2 = Serial1.read();
-    int y = Serial1.read();
-    int header3 = Serial1.read();
-    int ang = Serial1.read();
-    int header4 = Serial1.read();
-    int sentido = Serial1.read();
 
+    case AVANZANDO:
+      avanzarAlFrente();
+      break;
+
+
+
+  //Tareas en paralelo de robot
+    bool detectaPelota = false; 
+    //Lectura de datos
+    if(Serial.available()>=8)
+     {
+      int header1 = Serial1.read();
+      int x = Serial1.read();
+      int header2 = Serial1.read();
+      int y = Serial1.read();
+      int header3 = Serial1.read();
+      int ang = Serial1.read();
+      int header4 = Serial1.read(); 
+      int sentido = Serial1.read();
+     }
     if (header1 == 201 && header2 == 202 && header3 == 203 && header4 == 204)
     {
       decodedX = x / 2.0;
       decodedY = (y / 2.0) - 50.0;
       decodedAngle = ang - 100.0;
       decodedSense = sentido;
-
+      detectaPelota = true;
+  
       // Mostrar datos
       Serial.print("X: "); Serial.print(decodedX);
       Serial.print(" | Y: "); Serial.print(decodedY);
       Serial.print(" | Ang: "); Serial.print(decodedAngle);
       Serial.print(" | Sentido: "); Serial.println(decodedSense);
-
-      // Lógica de seguimiento
-      switch (trackingState)
-      {
-        case BUSCANDO:
-          Serial.println("Buscando pelota...");
-
-          if (decodedX > 0)
-          {
-            trackingState = GIRANDO;
-          }
-          else
-          {
-            // Gira buscando pelota
-            motor1(potencia, 0);
-            motor2(potencia, 0);
-            motor3(potencia, 0);
-          }
-          break;
-
-        case GIRANDO:
-          Serial.println("Girando hacia pelota...");
-          if (abs(decodedAngle) >= tolerancia_centrado)
-          {
-            girar(decodedAngle);
-          }
-          else
-          {
-            trackingState = AVANZANDO;
-          }
-          break;
-
-        case AVANZANDO:
-          Serial.println("Avanzando hacia pelota...");
-          if (decodedX > tolerancia_cercania)
-          {
-            if (abs(decodedAngle) > tolerancia_centrado)
-            {
-              trackingState = GIRANDO;  // Reajustar ángulo
-            }
-            else
-            {
-              // Avanzar al frente
-              motor3(100, 0);
-              motor2(100, 1);
-            }
-          }
-          else
-          {
-            Serial.println("Pelota alcanzada.");
-            detenerMotores();
-            //trackingState = BUSCANDO;
-          }
-          break;
-      }
     }
     else
     {
       // Paquete con headers incorrectos
       Serial.println("Paquete inválido, descartado.");
     }
-  }
-  else
-  {
-    // ➤ Comportamiento cuando no hay datos válidos:
-    // Gira 2 segundos, se detiene 1 segundo, y repite
 
-    static unsigned long tiempoAnterior = 0;
-    static bool estaGirandoBusqueda = false;
-    unsigned long ahora = millis();
 
-    if (estaGirandoBusqueda)
+    //Cambiar de BUSCANDO a GIRANDO
+    if(trackingState == BUSCANDO && abs(decodedAngle) > tolerancia_centrado)
     {
-      if (ahora - tiempoAnterior >= 500)
-      {
-        detenerMotores();
-        estaGirandoBusqueda = false;
-        tiempoAnterior = ahora;
-        Serial.println("Pausa 1 segundo...");
-      }
-    }
-    else
-    {
-      if (ahora - tiempoAnterior >= 500)
-      {
-        motor1(50, 0);
-        motor2(50, 0);
-        motor3(50, 0);
-        estaGirandoBusqueda = true;
-        tiempoAnterior = ahora;
-        Serial.println("Girando 2 segundos...");
-      }
+      trackingState = GIRANDO;
     }
 
-    Serial.println("Esperando paquete válido...");
-  }
+    
+    //Cambiar de GIRANDO a AVANZANDO
+    if (trackingState == GIRANDO && abs(decodedAngle) =< tolerancia_centrado)
+    {
+      trackingState = AVANZANDO;
+    }
+
+    //Cambiar de AVANZANDO a GIRANDO
+    if(trackingState==AVANZANDO && abs(decodedAngle) > tolerancia-centrado)    
+    {
+      trackingState = GIRANDO;
+    }
+
+    //Cambiar de AVANZANDO/GIRANDO a BUSCANDO
+    if(detectaPelota == false)
+    {
+      trackingState = BUSCANDO;
+    }
+
+    //cambiar de AVANZANDO a DETENER MOTORES 
+//    if(trackingState == AVANZANDO && detectaPelota == false) 
+//    {
+//      detenerMotores();
+//    }
+
+    
 }
