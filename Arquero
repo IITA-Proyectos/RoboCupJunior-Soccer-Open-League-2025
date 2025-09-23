@@ -1,0 +1,217 @@
+#include <Arduino.h>
+#include <zirconLib.h>
+
+int direccion = 1; // 0 = derecha, 1 = izquierda
+
+// NOMBRAR SENSORES 
+int s1 = readLine(1); // Izquierda
+int s2 = readLine(2); // Centro
+int s3 = readLine(3); // Derecha
+
+
+// LUMINOSIDADES COLORES (min, max) 
+
+// Luminosidad del s1 
+bool blanco_s1 = (s1 >= 575) && (s1 <= 753); 
+bool verde_s1 = (s1 >= 210) && (s1 <= 340); 
+bool negro_s1 = (s1 >= 174) && (s1 <= 227); 
+
+// Luminosidad del s2
+bool blanco_s2 = (s2 >= 494) && (s2 <= 762); 
+bool verde_s2 = (s2 >= 370) && (s2 <= 467); 
+bool negro_s2 = (s2 >= 418) && (s2 <= 422); 
+
+// Luminosidad del s3
+bool blanco_s3 = (s3 >= 590) && (s3 <= 754); 
+bool verde_s3 = (s3 >= 254) && (s3 <= 342); 
+bool negro_s3 = (s3 >= 234) && (s3 <= 269); 
+
+
+// FUNCION GIRAR 
+// Giro no bloqueante
+bool girando = false;
+unsigned long tiempoInicioGiro = 0;
+unsigned long duracionGiro = 0;
+int direccionGiro = 0;
+
+void girar(float angulo) 
+{
+    if (girando) return;  // Ya está girando, no reiniciar
+    duracionGiro = abs(angulo * 43 / 200);
+    tiempoInicioGiro = millis();
+    girando = true;
+    direccionGiro = (angulo > 0) ? 0 : 1;
+
+    motor1(potencia, direccionGiro);
+    motor2(potencia, direccionGiro);
+    motor3(potencia, direccionGiro);
+}
+
+void detenerMotores()
+{
+    motor1(0, 0); motor1(0, 1);
+    motor2(0, 0); motor2(0, 1);
+    motor3(0, 0); motor3(0, 1);
+    girando = false;
+}
+
+void setup(void) {
+Serial.begin(9600); 
+InitializeZircon(); 
+}
+
+void loop(void) 
+{ 
+
+// PARA LA FUNCION DE GIRAR 
+// Finalizar giro si ya pasó el tiempo 
+if (girando && millis() - tiempoInicioGiro >= duracionGiro)
+{
+    detenerMotores();
+    girando = false; 
+}
+
+// IMPRIMIR LOS VALORES DE LUMINICIDAD DE CADA SENSOR 
+Serial.print("S1: "); Serial.print(s1);
+Serial.print("\tS2: "); Serial.print(s2);
+Serial.print("\tS3: "); Serial.print(s3);
+
+
+// LOGICA DE OSILACION EN EL ARCO  
+
+// --- Mantener orientación ---
+  
+anguloActual = leerGiroscopio();
+float error = anguloActual - anguloObjetivo;
+  
+if (abs(error) > tolerancia) 
+{
+    // corrige con pequeñas rotaciones
+    girar(error); 
+}
+
+// EL GIROSCOPIO SIRVE COMO REGILADOR DE LO DERECHO QUE ESTA EL ROBOT EN X 
+// LOS SENSORES SIRVEN PARA QUE NO ENTRE EN EL ARCO REGILADOR DE LO DERECHO QUE ESTA EN Y 
+//  si los sensores detectan blanco que se vaya un toque a adelante, no que siga la línea blanca, si no que si la ve se aleje 
+
+// --- Seguidor de línea ---  
+
+// 🐵 Si se desvia el sensor 1 
+if (blanco_s1! && blanco_s2) 
+{
+    motor1 (70, 1
+}
+
+
+
+
+// 🐵 A la izquierda con dos sensores en el blanco 
+
+if (blanco_s1 && blanco_s2) 
+{
+dirección = 1;     // Izquierda 
+// Calibrar para que vaya en el eje "y" de la camara  
+motor1(100, 0); 
+motor2(80, 1); 
+motor3(80, 1); 
+Serial.print("\tAvanzando a la izquierda");
+}
+
+// 🐵 En la esquina Izquierda cambia de dirección a la derecha 
+
+else if ( blanco_s1! && blanco_s2)
+{
+direccion = 0;    // Derecha 
+motor1(100, 1); 
+motor2(80, 0);
+motor3(80, 0); 
+Serial.print("\tAvanzando a la derecha");
+}
+
+// 🐵 A la derecha con dos sensores en el blanco 
+
+else if (verde_izq && verde_cen && verde_der) {
+// Dentro del área, seguir patrullando en la dirección actual
+if (direccion == 1) {
+motor1(100, 1); // Ir a la derecha
+motor3(100, 1);
+Serial.print("\tPatrullando derecha");
+} else {
+motor1(100, 0); // Ir a la izquierda
+motor3(100, 0); 
+Serial.print("\tPatrullando izquierda");
+}
+}
+else {
+// Caso inesperado (fuera del área, negro, etc.)
+motor1(0, 0);
+motor3(0, 0);
+Serial.print("\t[ALERTA] Fuera de zona segura");
+}
+
+Serial.println();
+delay(100);
+}
+
+
+
+
+
+
+
+
+// Sensores
+int s1, s2, s3;
+const int umbral = 600;      // ajustar
+unsigned long tiempoFuera = 0;
+
+// Giroscopio
+float anguloActual;
+const float anguloObjetivo = 0;  // mantener frente
+const float tolerancia = 5;
+
+// Estado de dirección
+enum Direccion { DERECHA, IZQUIERDA };
+Direccion dir = DERECHA;
+
+void setup() {
+  iniciarSensores();
+  iniciarGiroscopio();
+}
+
+void loop() {
+  s1 = analogRead(A0);
+  s2 = analogRead(A1);
+  s3 = analogRead(A2);
+
+  bool blanco_s1 = (s1 > umbral);
+  bool blanco_s2 = (s2 > umbral);
+
+  anguloActual = leerGiroscopio();
+  float error = anguloActual - anguloObjetivo;
+
+  // --- Mantener orientación ---
+  if (abs(error) > tolerancia) {
+      // corrige con pequeñas rotaciones
+      corregirAngulo(error);
+  }
+
+  // --- Detección de pérdida de línea ---
+  if (!blanco_s1 && !blanco_s2) {
+      if (tiempoFuera == 0) tiempoFuera = millis();
+      if (millis() - tiempoFuera >= 2000) {  // 2 segundos sin línea
+          // Cambiar sentido
+          dir = (dir == DERECHA) ? IZQUIERDA : DERECHA;
+          tiempoFuera = 0;  // reset
+      }
+  } else {
+      tiempoFuera = 0;      // línea recuperada
+  }
+
+  // --- Movimiento ---
+  if (dir == DERECHA) {
+      avanzarDerecha();   // motores avanzan hacia la derecha
+  } else {
+      avanzarIzquierda(); // motores avanzan hacia la izquierda
+  }
+}
