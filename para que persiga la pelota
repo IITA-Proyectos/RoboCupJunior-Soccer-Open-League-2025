@@ -15,7 +15,7 @@ const float tolerancia_centrado = 6.0;   // grados
 const float tolerancia_cercania = 20.0;  // cm
 
 // Estados del seguimiento
-enum TrackingState { BUSCANDO, GIRANDO, AVANZANDO };
+enum TrackingState {BUSCANDO, GIRANDO, AVANZANDO};
 TrackingState trackingState = BUSCANDO;
 
 // Giro no bloqueante
@@ -24,9 +24,10 @@ unsigned long tiempoInicioGiro = 0;
 unsigned long duracionGiro = 0;
 int direccionGiro = 0;
 
-void girar(float angulo) {
+void girar(float angulo) 
+{
   if (girando) return;  // Ya está girando, no reiniciar
-  duracionGiro = abs(angulo * 43 / 200);
+  duracionGiro = abs(angulo * 43 / 200);   // calibrar este valor según tu robot
   tiempoInicioGiro = millis();
   girando = true;
   direccionGiro = (angulo > 0) ? 0 : 1;
@@ -36,11 +37,7 @@ void girar(float angulo) {
   motor3(potencia, direccionGiro);
 }
 
-
-
-
-
-void detenerMotores()
+void detenerMotores() 
 {
   motor1(0, 0); motor1(0, 1);
   motor2(0, 0); motor2(0, 1);
@@ -48,18 +45,126 @@ void detenerMotores()
   girando = false;
 }
 
-void avanzarAlFrente(){
+void avanzarAlFrente() 
+{
   motor3(100, 0);
   motor2(100, 1);
 }
 
+void setup() 
+{
+  InitializeZircon();
+  Serial.begin(BAUD_RATE);
+  while (!Serial && millis() < 5000);
+  Serial1.begin(BAUD_RATE);
+  Serial.println("Decodificador Teensy iniciado.");
+}
+
+void loop() 
+{
+  //Estados del Robot
+  switch (trackingState) 
+  {
+    case BUSCANDO:
+      if (!girando) 
+      {
+        girar(5);
+      }
+      if (girando && millis() - tiempoInicioGiro > 200) 
+      {
+        detenerMotores();
+      }
+      break;
+
+    case GIRANDO:
+      if (!girando) 
+      {
+        girar(decodedAngle);
+      }
+      if (girando && millis() - tiempoInicioGiro > duracionGiro) 
+      {
+        detenerMotores();
+      }
+      break;
+
+    case AVANZANDO:
+      avanzarAlFrente();
+      break;
+  }
+
+  // --- Lectura de datos ---
+  bool detectaPelota = false; 
+
+  static int header1, header2, header3, header4;
+  static int x, y, ang, sentido;
+
+  if (Serial1.available() >= 8) 
+  {
+    header1 = Serial1.read();
+    x       = Serial1.read();
+    header2 = Serial1.read();
+    y       = Serial1.read();
+    header3 = Serial1.read();
+    ang     = Serial1.read();
+    header4 = Serial1.read(); 
+    sentido = Serial1.read();
+  }
+
+  if (header1 == 201 && header2 == 202 && header3 == 203 && header4 == 204) 
+  {
+    decodedX = x / 2.0;
+    decodedY = (y / 2.0) - 50.0;
+    decodedAngle = ang - 100.0;
+    decodedSense = sentido;
+    detectaPelota = true;
+
+    Serial.print("X: "); Serial.print(decodedX);
+    Serial.print(" | Y: "); Serial.print(decodedY);
+    Serial.print(" | Ang: "); Serial.print(decodedAngle);
+    Serial.print(" | Sentido: "); Serial.println(decodedSense);
+  }
+  else 
+  {
+    Serial.println("Paquete inválido, descartado.");
+  }
+
+  // --- Máquina de estados --- 
+
+  //Cambiar de BUSCANDO a GIRANDO
+  if (trackingState == BUSCANDO && abs(decodedAngle) > tolerancia_centrado) 
+  {
+    trackingState = GIRANDO;
+  }
 
 
+  //Cambiar de GIRANDO a AVANZANDO
+  if (trackingState == GIRANDO && abs(decodedAngle) <= tolerancia_centrado) 
+  {
+    trackingState = AVANZANDO;
+  }
 
 
+  //Cambiar de AVANZANDO a GIRANDO
+  if (trackingState == AVANZANDO && abs(decodedAngle) > tolerancia_centrado) 
+  {
+    trackingState = GIRANDO;
+  }
 
 
+  //Cambiar de AVANZANDO/GIRANDO a BUSCANDO
+  if (detectaPelota == false) 
+  {
+    trackingState = BUSCANDO;
+  }
 
+
+      //cambiar de AVANZANDO a DETENER MOTORES 
+//    if(trackingState == AVANZANDO && detectaPelota == false) 
+//    {
+//      detenerMotores();
+//    }
+
+}
 
 
 
