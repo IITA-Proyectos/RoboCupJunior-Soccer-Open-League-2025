@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <zirconLib.h>
+#define TRIG 9
+#define ECHO 10 
 
 int direccion = 1; // 0 = derecha, 1 = izquierda
 
@@ -7,24 +9,6 @@ int direccion = 1; // 0 = derecha, 1 = izquierda
 int s1 = readLine(1); // Izquierda
 int s2 = readLine(2); // Centro
 int s3 = readLine(3); // Derecha
-
-
-// LUMINOSIDADES COLORES (min, max) 
-
-// Luminosidad del s1 
-bool blanco_s1 = (s1 >= 575) && (s1 <= 753); 
-bool verde_s1 = (s1 >= 210) && (s1 <= 340); 
-bool negro_s1 = (s1 >= 174) && (s1 <= 227); 
-
-// Luminosidad del s2
-bool blanco_s2 = (s2 >= 494) && (s2 <= 762); 
-bool verde_s2 = (s2 >= 370) && (s2 <= 467); 
-bool negro_s2 = (s2 >= 418) && (s2 <= 422); 
-
-// Luminosidad del s3
-bool blanco_s3 = (s3 >= 590) && (s3 <= 754); 
-bool verde_s3 = (s3 >= 254) && (s3 <= 342); 
-bool negro_s3 = (s3 >= 234) && (s3 <= 269); 
 
 
 // FUNCION GIRAR 
@@ -47,6 +31,7 @@ void girar(float angulo)
     motor3(potencia, direccionGiro);
 }
 
+// FUNCIÓN PARA DETENER LOS MOTORES 
 void detenerMotores()
 {
     motor1(0, 0); motor1(0, 1);
@@ -55,29 +40,104 @@ void detenerMotores()
     girando = false;
 }
 
-void setup(void) {
-Serial.begin(9600); 
-InitializeZircon(); 
+// FUNCION PARA ENCENDER IR HACIA ADELANTE POR UN TIEMPO (milisegundos) 
+void Adelante(unsigned long tiempoEncendido) 
+{
+  static unsigned long inicio = 0;
+  static bool activo = false;
+
+  if (!activo) 
+  {
+    // Arranca el conteo
+    inicio = millis();
+    activo = true;
+
+    // Enciende motores
+    motor2(100, 1);
+    motor3(100, 1);
+  }
+
+  // Apaga cuando pasa el tiempo
+  if (activo && millis() - inicio >= tiempoEncendido) 
+  {
+    motor2(0, 0);
+    motor3(0, 0);
+    activo = false;
+  }
+}
+
+long medirDistancia() 
+{
+  // Disparo el pulso
+  digitalWrite(TRIG, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG, LOW);
+
+  // Tiempo de ida y vuelta
+  long duracion = pulseIn(ECHO, HIGH);
+  long distancia = duracion * 0.034 / 2; // en cm
+  return distancia;
+}
+
+void setup(void) 
+{
+    Serial.begin(9600); 
+    InitializeZircon(); 
+    pinMode(TRIG, OUTPUT);
+    pinMode(ECHO, INPUT);
 }
 
 void loop(void) 
 { 
-
+// ASIGNAR UNA VARIABLE A LA DISTANCIA 
+  long d = medirDistancia();
+  Serial.print("Distancia: ");
+  Serial.print(d);
+  Serial.println(" cm");
+  
 // PARA LA FUNCION DE GIRAR 
-// Finalizar giro si ya pasó el tiempo 
-if (girando && millis() - tiempoInicioGiro >= duracionGiro)
-{
-    detenerMotores();
-    girando = false; 
-}
+
+    // Finalizar giro si ya pasó el tiempo 
+    if (girando && millis() - tiempoInicioGiro >= duracionGiro)
+    {
+        detenerMotores();
+        girando = false; 
+    }
+    
+// LUMINOSIDADES COLORES (min, max) 
+
+    // Luminosidad del s1 
+    bool blanco_s1 = (s1 >= 575) && (s1 <= 753); 
+    bool verde_s1 = (s1 >= 210) && (s1 <= 340); 
+    bool negro_s1 = (s1 >= 174) && (s1 <= 227); 
+
+    // Luminosidad del s2
+    bool blanco_s2 = (s2 >= 494) && (s2 <= 762); 
+    bool verde_s2 = (s2 >= 370) && (s2 <= 467); 
+    bool negro_s2 = (s2 >= 418) && (s2 <= 422); 
+
+    // Luminosidad del s3
+    bool blanco_s3 = (s3 >= 590) && (s3 <= 754); 
+    bool verde_s3 = (s3 >= 254) && (s3 <= 342); 
+    bool negro_s3 = (s3 >= 234) && (s3 <= 269); 
+    
 
 // IMPRIMIR LOS VALORES DE LUMINICIDAD DE CADA SENSOR 
-Serial.print("S1: "); Serial.print(s1);
-Serial.print("\tS2: "); Serial.print(s2);
-Serial.print("\tS3: "); Serial.print(s3);
+  
+    Serial.print("S1: "); Serial.print(s1);
+    Serial.print("\tS2: "); Serial.print(s2);
+    Serial.print("\tS3: "); Serial.print(s3);
 
 
 // LOGICA DE OSILACION EN EL ARCO  
+
+// ahí tres cosas que ayudan a que el robot ocile en el arco 
+
+//     - mantiene la orientación al frente con el giroscopio 
+//     - no deja que entre en la parte blanca con los sensores de luminosidad de abajo 
+//     - con el ultrasonido no deja que se pase del arco en el eje y 
 
 // --- Mantener orientación ---
   
@@ -90,19 +150,45 @@ if (abs(error) > tolerancia)
     girar(error); 
 }
 
-// EL GIROSCOPIO SIRVE COMO REGILADOR DE LO DERECHO QUE ESTA EL ROBOT EN X 
-// LOS SENSORES SIRVEN PARA QUE NO ENTRE EN EL ARCO REGILADOR DE LO DERECHO QUE ESTA EN Y 
-//  si los sensores detectan blanco que se vaya un toque a adelante, no que siga la línea blanca, si no que si la ve se aleje 
+// --- No deja que entre en el sector del arco ---  
 
-// --- Seguidor de línea ---  
-
-// 🐵 Si se desvia el sensor 1 
-if (blanco_s1! && blanco_s2) 
+if ( blanco_s1 || blanco_s2 || blanco_s3 ) 
 {
-    motor1 (70, 1
+    Adelante(1500)    // Que avance durante 1.5 segundos 
 }
 
+// --- No deja que pase del arco --- 
+    
 
+
+
+
+
+
+
+
+// Sensores
+int s1, s2, s3;
+const int umbral = 600;      // ajustar
+unsigned long tiempoFuera = 0;
+
+// Giroscopio
+float anguloActual;
+const float anguloObjetivo = 0;  // mantener frente
+const float tolerancia = 5;
+
+// Estado de dirección
+enum Direccion { DERECHA, IZQUIERDA };
+Direccion dir = DERECHA;
+
+
+  // --- Movimiento ---
+  if (dir == DERECHA) {
+      avanzarDerecha();   // motores avanzan hacia la derecha
+  } else {
+      avanzarIzquierda(); // motores avanzan hacia la izquierda
+  }
+}.     
 
 
 // 🐵 A la izquierda con dos sensores en el blanco 
