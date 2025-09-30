@@ -86,6 +86,9 @@ float girar(float angulo) {
 // Si necesitas usar otro puerto serial, como Serial2, Serial3, etc., consulta el pinout de tu Teensy 4.1.
 #define RX_PIN 0 // Pin RX1 en Teensy 4.1
 #define TX_PIN 1 // Pin TX1 en Teensy 4.1
+// SIEMPRE ASEGURARSE QUE GND DE OPENMV esta conectado a GND de Teensy y que no esta conectada la OPENMV por puerto USB para programarla mientras esta conectado el Teensy.
+// Lo ideal para modificar programacion de OpenMV es apagar Teensy, conectar usb de OpenMV a PC, programar, luego bajar programa a OPENMV, desconectar USB de OpenMV
+// recien alli dar energia a Teensy
 
 // Velocidad de comunicación serial (baudios)
 const long BAUD_RATE = 19200;
