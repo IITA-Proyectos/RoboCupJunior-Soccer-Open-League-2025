@@ -1,0 +1,61 @@
+#include <Arduino.h>
+#include <zirconLib.h>
+angulo=90
+
+void setup(void)
+{
+
+  InitializeZircon();
+
+}
+
+
+void loop(void)
+{   
+    if angulo > 0:   //angulo es mayor a 0
+    print("es positivo")
+    while angulo != 0:   //angulo es distinto de 0
+    motor1(100, 1);      //mueve motores 
+    motor2(100, 1);
+    motor3(100, 1);
+    print(angulo)
+   angulo = angulo - 1   // disminuye el angulo 
+else :
+    print("es negativo")  //angulo es menor a 0
+    while angulo != 0:     //angulo distinto de 0 
+     print(angulo)
+    motor1(100, 0);      //mueve motores 
+    motor2(100, 0);
+    motor3(100, 0);
+   angulo = angulo + 1  //Restamos para que llegue a cero y termine el ciclo
+  //detiene 
+ motor1(0, 1);
+ motor2(0, 1);
+ motor3(0,1);
+print("llegó a cero", angulo)  //final llegó a 0 
+    delay(2000)
+
+   
+//una vez que funcione el angulo se determina por lo que ve el giroscopo
+Y la cámara 
+
+ //esto compara el angulo si es distinto de 0 en positivo, al angulo lo va a restar
+ //   int v1;     //Potencia del motor 1
+  //v1=100 que es la potencia 
+  //  for(angulo !=100; angulo=angulo-1){
+    //motor1(100, 1);      //mueve motores 
+  //  motor2(100, 1);
+ //   motor3(100, 1);
+ //   print(angulo)
+  
+//lo mismo pero para cuando el angulo es negativo 
+ //   int v1;     //Potencia del motor 1
+  //v1=100 que es la potencia 
+  //  for(angulo !=100; angulo=angulo+1){
+    //motor1(100, 0);      //mueve motores 
+  //  motor2(100, 0);
+ //   motor3(100, 0);
+ //   print(angulo)
+  
+    }
+}
