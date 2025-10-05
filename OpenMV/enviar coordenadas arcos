@@ -138,7 +138,7 @@ while(True):
       byteY = map_range(round(Y), -50, 50, 0, 200)
       byteAng = map_range(round(angulo), -100, 100, 0, 200)
             
-      # ⚠️ PAQUETE SIMPLIFICADO SIN SENTIDO
+      # ⚠️ PAQUETE SIMPLIFICADO 
       packet = [
         201, byteX,        # Coordenada X (0-200)
         202, byteY,        # Coordenada Y (0-200) 
