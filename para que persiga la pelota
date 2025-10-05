@@ -1,28 +1,46 @@
 #include <Arduino.h>
 #include <zirconLib.h>
+#include <Wire.h> 
+#include <Adafruit_Sensor.h> 
+#include <Adafruit_BNO055.h> 
 
 const long BAUD_RATE = 19200;
-int potencia = 90;
 
-// --- Variables globales para BUSCANDO ---
-unsigned long tAnterior = 0;
-const unsigned long TIEMPO_GIRO = 1000;
-const unsigned long TIEMPO_PARE = 800;
-bool girandoAhora = false;
+// Giroscopo 
+//   Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
+//   float correccion;
+//   float error = 0;
+//   float initialYaw = 0;
+//   float currentYaw;
 
+// Angulos 
+  float anguloRadPelota;
+  float anguloPelota;
+   
+  float anguloRadArco;
+  float anguloArco;
+
+// Velocidades 
+  float k; 
+  float g; 
+   
 // Variables decodificadas
-float decodedX = 0.0;
-float decodedY = 0.0;
-float decodedAngle = 0.0;
-int decodedSense = 0;
+  float decodedXp = 0.0;
+  float decodedYp = 0.0;
+  float decodedXa = 0.0;
+  float decodedYa = 0.0;
+
+// Verificacion de objetos 
+  bool haypelota = 0;
+  bool hayarco = 0;
 
 // Tolerancias (ajusta según precisión deseada)
-const float tolerancia_centrado = 6.0;   // grados
-const float tolerancia_cercania = 20.0;  // cm
+  const float tolerancia_centrado = 5.0;   // coordinacion de el arco y la pelota 
+  const float tolerancia_cercania = 25.0;  // que tan cerca esta de la pelota el robot 
 
 // Estados del seguimiento
-enum TrackingState {BUSCANDO, GIRANDO, AVANZANDO};
-TrackingState trackingState = BUSCANDO;
+enum TrackingState {GIRANDO, CENTRANDO, AVANZANDO, PATEANDO};
+TrackingState trackingState = GIRANDO;
 
 // Giro no bloqueante
 bool girando = false;
@@ -30,17 +48,13 @@ unsigned long tiempoInicioGiro = 0;
 unsigned long duracionGiro = 0;
 int direccionGiro = 0;
 
-void girar(float angulo)     // IMPORTANTE está parte solo calcula el tiempo de duración del giro y enciende los motores, la parte donde detiene los motores está en el loop 
+void girar() 
 {
-  if (girando) return;  // Ya está girando, no reiniciar
-  duracionGiro = abs(angulo * 43.0 / 200.0);   // CALIBRAR no tiene sentido si gira 10° el tiempo es  2ms 
-  tiempoInicioGiro = millis();
-  girando = true;
-  direccionGiro = (angulo > 0) ? 0 : 1;
-
-  motor1(100, direccionGiro);
-  motor2(100, direccionGiro);
-  motor3(100, direccionGiro);
+  g = 0.9;
+  motor1(50*g, 0);
+  motor2(50*g, 0);
+  motor3(50*g, 0);
+  //horario
 }
 
 void detenerMotores() 
@@ -48,153 +62,198 @@ void detenerMotores()
   motor1(0, 0); 
   motor2(0, 0); 
   motor3(0, 0); 
-  girando = false;
 }
 
 void avanzarAlFrente() 
 {
-  motor3(100, 0);
-  motor2(100, 1);
+  motor2(50, 0);
+  motor1(50, 1);
+  motor3(0, 0);
 }
 
+
 void setup() 
-{
+{ 
+//  delay(3000);
+//  if (!bno.begin()) 
+//  {
+//    Serial.println("¡No se pudo encontrar el BNO055!");
+//    while (1);
+//  }
+//  bno.setExtCrystalUse(true); 
+//  sensors_event_t event;
+//  bno.getEvent(&event);
+//  initialYaw   = event.orientation.x; // 0..360
+//  
   InitializeZircon();
+//while(true)
+//{
+//  girar();
+//  delay(2000);
+//  
+//  avanzarAlFrente();
+//  delay(2000);
+//
+//  detenerMotores();
+//  delay(2000);
+//} 
+  
   Serial.begin(BAUD_RATE);
+  Serial.println("estamos en setup");
   while (!Serial && millis() < 5000);
   Serial1.begin(BAUD_RATE);
   Serial.println("Decodificador Teensy iniciado.");
 }
 
+
+
 void loop() 
+{ 
+//  sensors_event_t event;
+//  bno.getEvent(&event);
+//
+//  Serial.println ("X: ");
+//  Serial.println(event.orientation.x);
+//  currentYaw   = event.orientation.x;
+//  
+  if (Serial1.available() >= 6)
+  {
+    int header1 = Serial1.read();
+    int xp = Serial1.read();
+    int yp = Serial1.read();
+    int header2 = Serial1.read(); 
+    int xa = Serial1.read();
+    int ya = Serial1.read();
+
+    if (header1 == 201 && header2 == 202)
+    {
+      decodedXp = xp / 2.0;
+      decodedXa = xa / 2.0;
+
+      if(yp == 0) { decodedYp = 0; }
+      else { decodedYp = (yp / 2.0) - 50.0; }
+
+      if(ya == 0) { decodedYa = 0; }
+      else { decodedYa = (ya / 2.0) - 50.0; }
+
+      // Calcular el ángulo en radianes
+        anguloRadPelota = atan2(decodedYp, decodedXp);
+      // Convertir a grados
+        anguloPelota = anguloRadPelota * 180.0 / PI;
+      // Calcular el ángulo en radianes
+        anguloRadArco = atan2(decodedYp, decodedXp);
+      // Convertir a grados
+        anguloArco = anguloRadArco * 180.0 / PI;
+
+      // Mostrar datos
+      Serial.print("X pelota: "); Serial.print(decodedXp);
+      Serial.print(" | Y pelota: "); Serial.print(decodedYp);
+      Serial.print(" | X arco: "); Serial.print(decodedXa);
+      Serial.print(" | Y arco: "); Serial.println(decodedYa);
+
+      if ( xp == 0 )
+      {
+        haypelota = false;  
+      }
+      else
+      {
+        haypelota = true;
+      }
+      if ( xa == 0 )
+      {
+        hayarco = false;  
+      }
+      else
+      {
+        hayarco = true;
+      }
+      
+    }
+      
+  }
+
+
+// lectura giroscopo
+
+  
+
+// lectura sensores luz
+
+
+
+
+
+//////////////////// maquina estados
+
+
+switch(trackingState) 
 {
-// PARA LA FUNCION DE GIRAR 
-// Finalizar giro si ya pasó el tiempo 
-if (girando && millis() - tiempoInicioGiro >= duracionGiro)
-{
-    detenerMotores();
-    girando = false; 
+ case GIRANDO:
+    if (haypelota == true)
+    {
+        detenerMotores();
+        trackingState = AVANZANDO; 
+    }
+    else
+    {
+        girar();   
+    }
+    break;
+
+ case AVANZANDO: 
+    avanzarAlFrente();   
+
+    if ( haypelota == true && decodedXp <= tolerancia_cercania ) 
+    {
+         trackingState = CENTRANDO;
+    }
+    
+    if (haypelota==false)
+    {
+      trackingState = GIRANDO;   
+    } 
+    break; 
+    
+ case CENTRANDO:
+
+    k = 0.6;
+    if (decodedYa >= 0)
+    {
+       //medio circulo 
+       motor1(60*k, 0);
+       motor2(60*k, 0);
+       motor3(110*k, 1); 
+    } 
+    else
+    {
+       //medio circulo 
+       motor1(60*k, 1);
+       motor2(60*k, 1);
+       motor3(110*k, 0);
+    }
+    if( hayarco && haypelota && abs(decodedYa - decodedYp) <= tolerancia_centrado)
+    {  
+      trackingState = PATEANDO; 
+    }
+    break;
+    
+case PATEANDO:
+
+    motor2(100, 0);
+    motor1(100, 1);
+    motor3(0, 0);
+    delay(1000);
+    if (haypelota == false)
+    {
+      trackingState = GIRANDO;   
+    }
+    break;
 }
 
-//🐵 --- LECTURA DE DATOS --- 🐵
-  bool detectaPelota = false; 
-
-  static int header1, header2, header3, header4;
-  static int x, y, ang, sentido;
-  
-  if (Serial1.available() >= 8) 
-  {
-      if (Serial1.peek() == 201) // ¿primer header?
-      {
-          header1 = Serial1.read();
-          x       = Serial1.read();
-          header2 = Serial1.read();
-          y       = Serial1.read();
-          header3 = Serial1.read();
-          ang     = Serial1.read();
-          header4 = Serial1.read(); 
-          sentido = Serial1.read();
-
-          if (header2 == 202 && header3 == 203 && header4 == 204) 
-          {
-              decodedX = x / 2.0;
-              decodedY = (y / 2.0) - 50.0;
-              decodedAngle = ang - 100.0;
-              decodedSense = sentido;
-              detectaPelota = true; 
-                
-              Serial.print("X: "); Serial.print(decodedX);
-              Serial.print(" | Y: "); Serial.print(decodedY);
-              Serial.print(" | Ang: "); Serial.print(decodedAngle);
-              Serial.print(" | Sentido: "); Serial.println(decodedSense);
-          }
-      }
-      else 
-      {
-          Serial1.read(); // descartar basura hasta encontrar header1 = 201
-      }
-  } 
-  else 
-  { 
-      Serial.println("No llego el paquete completo"); 
-      return;    // Todavía no tengo un paquete completo, return para que no haga nada más en este ciclo del loop. Esperemos al próximo y vemos si ya llegaron los datos
-  } 
-  
-//🐵 --- ESTADOS DEL ROBOT --- 🐵
-switch (trackingState)
-{
-    case BUSCANDO: 
-    
-      //Cambiar de BUSCANDO a GIRANDO
-      if (detectaPelota && abs(decodedAngle) > tolerancia_centrado) 
-      {
-          trackingState = GIRANDO;
-      }
-    
-      // tAnterior     cuando el robot empezó a girar o cuando se detuvo 
-      // TIEMPO_GIRO      ms girando
-      // TIEMPO_PARE      ms detenido
-      // girandoAhora = false      para saber si está girando 
-
-  
-      if (girandoAhora && millis() - tAnterior >= TIEMPO_GIRO) 
-      {
-      detenerMotores();
-      girandoAhora = false;
-      tAnterior = millis();
-      }
-      else if (girandoAhora==false && millis() - tAnterior >= TIEMPO_PARE) 
-      {
-      motor1(100,1);     //girando 
-      motor2(100,1); 
-      motor3(100,1); 
-      girandoAhora = true;
-      tAnterior = millis();
-      }
-      break;
      
+}
+  
       
-    case GIRANDO: 
-    // girar(decodedAngle) como la función girar no gira si ya está girando, podría pasar que al recibir nuevos decoded Angle constantemente, no siga bien la pelota o sea menos eficaz, esta forma podría ser mejor, para probar 
-      // if (decodeAngle > 0) 
-      // { 
-      //     motor1(90,0); 
-      //     motor2(90,0); 
-      //     motor3(90,0); 
-      // } 
-      // else 
-      // { 
-      //     motor1(90,1); 
-      //     motor2(90,1); 
-      //     motor3(90,1); 
-      // } 
       
-      girar(decodedAngle); 
-      
-      //Cambiar de GIRANDO a AVANZANDO
-      if (detectaPelota && abs(decodedAngle) <= tolerancia_centrado) 
-      {
-        trackingState = AVANZANDO;
-      }
-      break;
-
-
-    case AVANZANDO:
-      avanzarAlFrente(); 
-      
-      // Cambiar de AVANZANDO a DETENER MOTORES porque está la pelota está cerca  
-      if(detectaPelota == false) 
-      {
-        detenerMotores(); 
-        // Acá iría la lógica de patear al arco 
-      }
-      
-      //Cambiar de AVANZANDO a GIRANDO por si está descentrada 
-      if (detectaPelota == true && abs(decodedAngle) > tolerancia_centrado) 
-      {
-        trackingState = GIRANDO;
-      }
-      break;
-} 
 
 
