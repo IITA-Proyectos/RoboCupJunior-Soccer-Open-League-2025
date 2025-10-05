@@ -1,0 +1,119 @@
+  #include <Arduino.h>
+  #include <Wire.h>
+  #include <Adafruit_Sensor.h>
+  #include <Adafruit_BNO055.h>
+
+
+#define INA1 2
+#define INB1 5
+#define PWM1 3
+
+#define INA2 8
+#define INB2 7
+#define PWM2 6
+
+#define INA3 11
+#define INB3 12
+#define PWM3 4
+#define START_BYTE 0xAA
+
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
+float correccion;
+float error = 0;
+float initialYaw = 0;
+float currentYaw;
+float kp = 0.3;
+
+void setup(void) {
+Serial.begin(9600); 
+//InitializeZircon();
+
+Serial.println("Orientación inicial:");
+  Serial.print("Yaw: ");   Serial.println(initialYaw);
+  delay(3000);
+if (!bno.begin()) {
+    Serial.println("¡No se pudo encontrar el BNO055!");
+    while (1);
+  }
+  bno.setExtCrystalUse(true);
+
+ 
+ sensors_event_t event;
+  bno.getEvent(&event);
+  initialYaw   = event.orientation.x; // 0..360
+}
+//funciones
+void ad() {
+  digitalWrite(INA3, 0);
+  digitalWrite(INB3, 1);
+  analogWrite(PWM3, 0);
+
+  digitalWrite(INA2, 1);
+  digitalWrite(INB2, 0);
+  analogWrite(PWM2, 0);
+
+  digitalWrite(INA1, 0);
+  digitalWrite(INB1, 1);
+  analogWrite(PWM1, 99);
+}
+void adproporcional() {
+  if (error>-2 && error <-2){
+  digitalWrite(INA3, 0);
+  digitalWrite(INB3, 1);
+  analogWrite(PWM3, 60);
+
+  digitalWrite(INA2, 0);
+  digitalWrite(INB2, 1);
+  analogWrite(PWM2, 60);
+
+  digitalWrite(INA1, 1);
+  digitalWrite(INB1, 0);
+  analogWrite(PWM1, 99);
+  }
+  else if (error > 0){ 
+   //motor izquierdo
+   digitalWrite(INA3, 0);
+   digitalWrite(INB3, 1);
+   analogWrite(PWM3, 60 );
+   //motor derecho
+   digitalWrite(INA2, 0);
+   digitalWrite(INB2, 1);
+   analogWrite(PWM2, 60 );
+   //motor atras
+   digitalWrite(INA1, 1);
+   digitalWrite(INB1, 0);
+   analogWrite(PWM1, 50);
+  }
+  else if (error < 0){
+   //motor izquierdo
+   digitalWrite(INA3, 0);
+   digitalWrite(INB3, 1);
+   analogWrite(PWM3, 75 );
+   //motor derecho
+   digitalWrite(INA2, 0);
+   digitalWrite(INB2, 1);
+   analogWrite(PWM2, 50 );
+   //motor atras
+   digitalWrite(INA1, 1);
+   digitalWrite(INB1, 0);
+   analogWrite(PWM1, 120);
+  }
+}
+
+void loop(void) 
+{  sensors_event_t event;
+  bno.getEvent(&event);
+
+  //Serial.println ("X: ");
+  //Serial.println(event.orientation.x);
+  currentYaw   = event.orientation.x;
+  // sacamos error y la correccion
+  error =  currentYaw - initialYaw;
+  if ( error > 180 ) error = error - 360;
+  if (error < -180) error = error + 360;
+
+  correccion= error * kp;
+  //Serial.println(correccion);
+   adproporcional();
+   delay(10);
+}
