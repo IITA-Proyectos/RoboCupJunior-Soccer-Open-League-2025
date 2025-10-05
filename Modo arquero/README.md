@@ -1,0 +1,198 @@
+#include <Arduino.h>
+#include <zirconLib.h>
+
+const long BAUD_RATE = 19200;
+int potencia = 90;
+
+// --- Variables globales para BUSCANDO ---
+unsigned long tAnterior = 0;
+const unsigned long TIEMPO_GIRO = 1000;
+const unsigned long TIEMPO_PARE = 800;
+bool girandoAhora = false;
+
+// Variables decodificadas
+float decodedX = 0.0;
+float decodedY = 0.0;
+float decodedAngle = 0.0;
+int decodedSense = 0;
+
+// Tolerancias (ajusta según precisión deseada)
+const float tolerancia_centrado = 6.0;   // grados
+const float tolerancia_cercania = 20.0;  // cm
+
+// Estados del seguimiento
+enum TrackingState {BUSCANDO, GIRANDO, AVANZANDO};
+TrackingState trackingState = BUSCANDO;
+
+// Giro no bloqueante
+bool girando = false;
+unsigned long tiempoInicioGiro = 0;
+unsigned long duracionGiro = 0;
+int direccionGiro = 0;
+
+void girar(float angulo)     // IMPORTANTE está parte solo calcula el tiempo de duración del giro y enciende los motores, la parte donde detiene los motores está en el loop 
+{
+  if (girando) return;  // Ya está girando, no reiniciar
+  duracionGiro = abs(angulo * 43.0 / 200.0);   // CALIBRAR no tiene sentido si gira 10° el tiempo es  2ms 
+  tiempoInicioGiro = millis();
+  girando = true;
+  direccionGiro = (angulo > 0) ? 0 : 1;
+
+  motor1(100, direccionGiro);
+  motor2(100, direccionGiro);
+  motor3(100, direccionGiro);
+}
+
+void detenerMotores() 
+{
+  motor1(0, 0); 
+  motor2(0, 0); 
+  motor3(0, 0); 
+  girando = false;
+}
+
+void avanzarAlFrente() 
+{
+  motor3(100, 0);
+  motor2(100, 1);
+}
+
+void setup() 
+{
+  InitializeZircon();
+  Serial.begin(BAUD_RATE);
+  while (!Serial && millis() < 5000);
+  Serial1.begin(BAUD_RATE);
+  Serial.println("Decodificador Teensy iniciado.");
+}
+
+void loop() 
+{
+// PARA LA FUNCION DE GIRAR 
+// Finalizar giro si ya pasó el tiempo 
+if (girando && millis() - tiempoInicioGiro >= duracionGiro)
+{
+    detenerMotores();
+    girando = false; 
+}
+
+//🐵 --- LECTURA DE DATOS --- 🐵
+  bool detectaPelota = false; 
+
+  static int header1, header2, header3, header4;
+  static int x, y, ang, sentido;
+  
+  if (Serial1.available() >= 8) 
+  {
+      if (Serial1.peek() == 201) // ¿primer header?
+      {
+          header1 = Serial1.read();
+          x       = Serial1.read();
+          header2 = Serial1.read();
+          y       = Serial1.read();
+          header3 = Serial1.read();
+          ang     = Serial1.read();
+          header4 = Serial1.read(); 
+          sentido = Serial1.read();
+
+          if (header2 == 202 && header3 == 203 && header4 == 204) 
+          {
+              decodedX = x / 2.0;
+              decodedY = (y / 2.0) - 50.0;
+              decodedAngle = ang - 100.0;
+              decodedSense = sentido;
+              detectaPelota = true; 
+                
+              Serial.print("X: "); Serial.print(decodedX);
+              Serial.print(" | Y: "); Serial.print(decodedY);
+              Serial.print(" | Ang: "); Serial.print(decodedAngle);
+              Serial.print(" | Sentido: "); Serial.println(decodedSense);
+          }
+      }
+      else 
+      {
+          Serial1.read(); // descartar basura hasta encontrar header1 = 201
+      }
+  } 
+  else 
+  { 
+      Serial.println("No llego el paquete completo"); 
+      return;    // Todavía no tengo un paquete completo, return para que no haga nada más en este ciclo del loop. Esperemos al próximo y vemos si ya llegaron los datos
+  } 
+  
+//🐵 --- ESTADOS DEL ROBOT --- 🐵
+switch (trackingState)
+{
+    case BUSCANDO: 
+    
+      //Cambiar de BUSCANDO a GIRANDO
+      if (detectaPelota && abs(decodedAngle) > tolerancia_centrado) 
+      {
+          trackingState = GIRANDO;
+      }
+    
+      // tAnterior     cuando el robot empezó a girar o cuando se detuvo 
+      // TIEMPO_GIRO      ms girando
+      // TIEMPO_PARE      ms detenido
+      // girandoAhora = false      para saber si está girando 
+
+  
+      if (girandoAhora && millis() - tAnterior >= TIEMPO_GIRO) 
+      {
+      detenerMotores();
+      girandoAhora = false;
+      tAnterior = millis();
+      }
+      else if (girandoAhora==false && millis() - tAnterior >= TIEMPO_PARE) 
+      {
+      motor1(100,1);     //girando 
+      motor2(100,1); 
+      motor3(100,1); 
+      girandoAhora = true;
+      tAnterior = millis();
+      }
+      break;
+     
+      
+    case GIRANDO: 
+    // girar(decodedAngle) como la función girar no gira si ya está girando, podría pasar que al recibir nuevos decoded Angle constantemente, no siga bien la pelota o sea menos eficaz, esta forma podría ser mejor, para probar 
+      // if (decodeAngle > 0) 
+      // { 
+      //     motor1(90,0); 
+      //     motor2(90,0); 
+      //     motor3(90,0); 
+      // } 
+      // else 
+      // { 
+      //     motor1(90,1); 
+      //     motor2(90,1); 
+      //     motor3(90,1); 
+      // } 
+      
+      girar(decodedAngle); 
+      
+      //Cambiar de GIRANDO a AVANZANDO
+      if (detectaPelota && abs(decodedAngle) <= tolerancia_centrado) 
+      {
+        trackingState = AVANZANDO;
+      }
+      break;
+
+
+    case AVANZANDO:
+      avanzarAlFrente(); 
+      
+      // Cambiar de AVANZANDO a DETENER MOTORES porque está la pelota está cerca  
+      if(detectaPelota == false) 
+      {
+        detenerMotores(); 
+        // Acá iría la lógica de patear al arco 
+      }
+      
+      //Cambiar de AVANZANDO a GIRANDO por si está descentrada 
+      if (detectaPelota == true && abs(decodedAngle) > tolerancia_centrado) 
+      {
+        trackingState = GIRANDO;
+      }
+      break;
+} 
