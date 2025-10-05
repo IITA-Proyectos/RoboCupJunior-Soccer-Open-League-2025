@@ -12,15 +12,12 @@ led_azul = pyb.LED(3)
 
 # Secuencia de inicio de LEDs
 led_verde.on()
-time.sleep(0.5)
+time.sleep(0.3)
 led_verde.off()
 time.sleep(0.3)
 led_verde.on()
-time.sleep(0.4)
+time.sleep(0.3)
 led_verde.off()
-led_azul.on()
-time.sleep(0.2)
-led_azul.off()
 
 # Inicializar la cámara
 sensor.reset()
@@ -36,9 +33,9 @@ pi = math.pi
 r = 13.5 / (pi * 2)  # Radio de la pelota (cm)
 
 # UMBRALES DE COLOR 
-orange_threshold = (10, 70, 20, 60, 10, 50)    # Naranja
-blue_threshold = (30, 80, -20, 10, -50, -10)   # Azul
-yellow_threshold = (50, 90, -20, 10, 20, 60)   # Amarillo
+orange_threshold = (100, 27, 20, 127, 17, 127)    # Naranja
+blue_threshold = (0, 35, 127, 15, -69, -28)   # Azul
+yellow_threshold = (49, 94, -77, 19, 7, 99)    # Amarillo
 
 def map_range(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
@@ -83,21 +80,21 @@ while(True):
         largest_blob = max(orange_blobs, key=lambda b: b.pixels())
         blob_detectado = largest_blob
         objeto_seleccionado = 0
-        led_rojo.on()
+        #led_rojo.on()
         
     elif blue_blobs:
         print("Objeto azul detectado")
         largest_blob = max(blue_blobs, key=lambda b: b.pixels())
         blob_detectado = largest_blob  
         objeto_seleccionado = 1
-        led_azul.on()
+        #led_azul.on()
         
     elif yellow_blobs:
         print("Objeto amarillo detectado")
         largest_blob = max(yellow_blobs, key=lambda b: b.pixels())
         blob_detectado = largest_blob
         objeto_seleccionado = 2
-        led_verde.on()
+        #led_verde.on()
     
     # VISUALIZACIÓN DE TODOS LOS OBJETOS DETECTADOS
     if orange_blobs:
