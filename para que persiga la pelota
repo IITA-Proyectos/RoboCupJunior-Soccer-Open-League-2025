@@ -17,12 +17,9 @@ const long BAUD_RATE = 19200;
 float anguloRadPelota;
 float anguloPelota;
 
-float anguloRadArco;
-float anguloArco;
-
-// Velocidades
-float k;
-float g;
+// Velocidades (no son las velocidades pero es para que la potencia sea proporcional)
+float k = 0.6;    // velocidad de medio circulo 
+float g;          // velocidad de girando en busqueda de la pelota 
 
 // Variables decodificadas
 float decodedXp = 0.0;
@@ -39,7 +36,7 @@ const float tolerancia_centrado = 10.0;   // coordinacion de el arco y la pelota
 const float tolerancia_cercania = 25.0;  // que tan cerca esta de la pelota el robot
 
 // Estados del seguimiento
-enum TrackingState {GIRANDO, CENTRANDO, AVANZANDO, PATEANDO};
+enum TrackingState {GIRANDO, CENTRANDO, AVANZANDO, NO_ARCO, SI_ARCO, EMPUJANDO_PELOTA_AL_ARCO};
 TrackingState trackingState = GIRANDO;
 
 // Giro no bloqueante
@@ -72,32 +69,33 @@ void avanzarAlFrente()
 }
 void apuntarALaPelota() 
 { 
-  // Calcular error normalizado
-  float error = anguloPelota - currentYaw;
-  if (error > 180)  error -= 360;
-  if (error < -180) error += 360;
+  if (anguloPelota < 0) 
+  {
+    motor1(50, 0); // Velocidad, dirección
+    motor2(50, 0);
+    motor3(50, 0);
 
-  // Girar según el error
-  if (fabs(error) > 5)     // Solo si el error es mayor a 2°
-  { 
-    if (error > 0) 
+    if(abs(abs(anguloPelota) - currentYaw) <= 5)
     {
-      motor1(50, 0); // Velocidad, dirección
-      motor2(50, 0);
-      motor3(50, 0);
-    } 
-    else 
-    {
-      motor1(50, 1);
-      motor2(50, 1);
-      motor3(50, 1);
+      detenerMotores();
     }
   } 
-  else 
+
+  if (anguloPelota > 0) 
   {
-    motor1(0, 0);
-    motor2(0, 0);
-    motor3(0, 0);
+    motor1(50, 1); // Velocidad, dirección
+    motor2(50, 1);
+    motor3(50, 1); 
+    
+    if(abs((360-anguloPelota) - currentYaw) <= 5)
+    {
+      detenerMotores();
+    }
+  } 
+
+  if (anguloPelota == 0)
+  { 
+    detenerMotores(); 
   }
 } 
 
@@ -145,66 +143,54 @@ void loop()
 //
     if (Serial1.available() >= 6)
     {
-        int header1 = Serial1.read();
-        int codedXp = Serial1.read();
-        int codedYp = Serial1.read();
-        int header2 = Serial1.read();
-        int codedXa = Serial1.read();
-        int codedYa = Serial1.read();
+      int header1 = Serial1.read();
+      int codedXp = Serial1.read();
+      int codedYp = Serial1.read();
+      int header2 = Serial1.read();
+      int codedXa = Serial1.read();
+      int codedYa = Serial1.read();
 
-        if (header1 == 201 && header2 == 202)
+      if (header1 == 201 && header2 == 202)
+      {
+        Xp = codedXp / 2.0;
+        Xa = codedXa / 2.0;
+        Yp = (codedYp / 2.0) - 50.0; 
+        Ya = (codedYa / 2.0) - 50.0; 
+
+        // Calcular el ángulo
+        if(codedXp != 0) 
         {
-            Xp = codedXp / 2.0;
-            Xa = codedXa / 2.0;
-
-            if(codedYp == 0) 
-            {Yp = 0;}
-            else 
-            {Yp = (codedYp / 2.0) - 50.0;}
-
-            if(codedYa == 0) 
-            {Ya = 0;}
-            else 
-            {Ya = (codedYa / 2.0) - 50.0;}
-
-            // Calcular el ángulo en radianes
-            anguloRadPelota = atan2(Yp, Xp);
-            // Convertir a grados
-            anguloPelota = anguloRadPelota * 180.0 / PI;
-            // Calcular el ángulo en radianes
-            anguloRadArco = atan2(Yp, Xp);
-            // Convertir a grados
-            anguloArco = anguloRadArco * 180.0 / PI;
-
-            // Mostrar datos
-            Serial.print("X pelota: ");
-            Serial.print(Xp);
-            Serial.print(" | Y pelota: ");
-            Serial.print(Yp);
-            Serial.print(" | X arco: ");
-            Serial.print(Xa);
-            Serial.print(" | Y arco: ");
-            Serial.println(Ya);
-
-            if ( Xp == 0 )
-            {
-                haypelota = false;
-            }
-            else
-            {
-                haypelota = true;
-            }
-            if ( Xa == 0 )
-            {
-                hayarco = false;
-            }
-            else
-            {
-                hayarco = true;
-            }
-
+          anguloPelota = atan2(Yp, Xp) * 180.0 / PI;
+          anguloArco = atan2(Yp, Xp) * 180.0 / PI;
         }
 
+        if ( codedXp == 0 )
+        {
+          haypelota = false;
+        }
+        else
+        {
+          haypelota = true;
+        }
+        if ( codedXa == 0 )
+        {
+          hayarco = false;
+        }
+        else
+        {
+          hayarco = true;
+        }
+
+        // Mostrar datos
+        Serial.print("X pelota: ");     // 0 significa que no ve la pelota 
+        Serial.print(Xp);
+        Serial.print(" | Y pelota: ");  // -50 significa que no ve la pelota
+        Serial.print(Yp);
+        Serial.print(" | X arco: ");    // 0 significa que no ve el arco 
+        Serial.print(Xa);
+        Serial.print(" | Y arco: ");    // -50 significa que no ve el arco  
+        Serial.println(Ya);
+      }
     }
 
 
@@ -218,96 +204,124 @@ void loop()
 
 // --- MAQUINA DE ESTADOS ---
 
-    switch(trackingState)
-    {
+  switch(trackingState)
+  {
     case GIRANDO:
 
-        girar();
+      girar();
 
-        if (haypelota == true)
-        {
-            detenerMotores();
-            trackingState = CENTRANDO;
-        }
-        break;
+      if (haypelota == true)
+      {
+        detenerMotores();
+        trackingState = CENTRANDO;
+      }
+    break;
 
     case CENTRANDO: 
         
-        apuntarALaPelota(); 
-        
-        if (fabs(error) < 5) 
-        { 
-            trackingState = AVANZANDO; 
-        } 
+      apuntarALaPelota(); 
+
+      trackingState = AVANZANDO; 
+      
+    break;
 
     case AVANZANDO:
 
-        avanzarAlFrente(); 
+      avanzarAlFrente(); 
 
-        if ( haypelota == true && Xp <= tolerancia_cercania )     // Si esta lo suficientemente cerca 
-        { 
-            detenerMotores(); 
+      if ( haypelota == true && Xp <= tolerancia_cercania )     // Si esta lo suficientemente cerca 
+      { 
+        detenerMotores(); 
             
-            if ( hayarco == true )    // si ve el arco contrario y tiene la pelota 
-            {
-                trackingState = SI_ARCO; 
-            }
-            else    // si no ve el arco contrario y tiene la pelota 
-            {
-                trackingState = NO_ARCO; 
-            }
-        } 
-        
-        if (fabs(error) < 5)     // Si se descentra 
-        { 
-            trackingState = CENTRANDO; 
-        } 
-
-        if ( haypelota == false )    // si deja de ver la pelota 
+        if ( hayarco == true )    // si ve el arco contrario y tiene la pelota 
         {
-            trackingState = GIRANDO; 
+          trackingState = SI_ARCO; 
         }
+        else    // si no ve el arco contrario y tiene la pelota 
+        {
+          trackingState = NO_ARCO; 
+        }
+      } 
+        
+      if (fabs(error) < 5)     // Si se descentra 
+      { 
+        trackingState = CENTRANDO; 
+      } 
+
+      if ( haypelota == false )    // si deja de ver la pelota 
+      {
+        trackingState = GIRANDO; 
+      }
     break;
 
     case NO_ARCO:     // Tiene la pelota pero no ve el arco a donde la tiene que patear
+      //medio circulo
+      motor1(60*k, 1);
+      motor2(60*k, 1);
+      motor3(110*k, 0); 
+      if(currentYaw >= 358 or currentYaw <= 2) 
+      {
+        avanzarAlFrente(); 
+      }
 
-
-        break;
+      if (hayarco == true)
+      { 
+        trackingState = SI_ARCO; 
+      } 
+    break;
 
     case SI_ARCO:     // Tiene la pelota y ve el arco a donde la tiene que patear 
 
-       k = 0.6;    // velocidad (no es la velocidad pero es para que la potencia sea proporcional)
-       if (Ya > 0)
-       {
-       //medio circulo
-           motor1(60*k, 0);
-           motor2(60*k, 0);
-           motor3(110*k, 1);
-       }
-       else
-       {
-       //medio circulo
-          motor1(60*k, 1);
-          motor2(60*k, 1);
-          motor3(110*k, 0);
-       }
+      detenerMotores(); 
+      if (Ya > 0)
+      {
+      //medio circulo
+        motor1(60*k, 0);
+        motor2(60*k, 0);
+        motor3(110*k, 1);
+      }
+      else
+      {
+      //medio circulo
+        motor1(60*k, 1);
+        motor2(60*k, 1);
+        motor3(110*k, 0);
+      }
        
-    if( hayarco && haypelota && abs(Ya - Yp) <= tolerancia_centrado_ArcoPelota)
-    {
+      if( hayarco && haypelota && abs(Ya - Yp) <= tolerancia_centrado_ArcoPelota)
+      {
         trackingState = EMPUJANDO_PELOTA_AL_ARCO; 
-    }
+      } 
+
     break;
 
-case EMPUJANDO_PELOTA_AL_ARCO:
-        detenerMotores();
+    case EMPUJANDO_PELOTA_AL_ARCO:
+      detenerMotores();
 
-        motor2(100, 0);
-        motor1(100, 1);
-        motor3(0, 0);
+      // Avanza con fuerza
+      motor2(100, 0);
+      motor1(100, 1);
+      motor3(0, 0);
+      delay(1000); 
 
-        delay(1000); 
+      // detiene un rato por la inercia  
+      detenerMotores();
+      delay(500);
+
+      // retrocede  
+      motor2(100, 1); 
+      motor1(100, 0); 
+      motor3(0, 0); 
+      delay(1000); 
         
+      detenerMotores();
+      delay(200);
 
-        break;
-    }
+      if ( haypelota == false )    // si deja de ver la pelota 
+      {
+        trackingState = GIRANDO; 
+      }
+
+    break;
+  }
 } 
