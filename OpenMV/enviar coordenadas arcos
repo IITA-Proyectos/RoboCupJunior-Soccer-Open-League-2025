@@ -6,149 +6,154 @@ uart = UART(3, 19200)
 
 # Encender LED
 import pyb
+
+# Crea un objeto para el LED's.
 led_verde = pyb.LED(2)
 led_rojo = pyb.LED(1)
 led_azul = pyb.LED(3)
 
-# Secuencia de inicio de LEDs
+# Enciende el LED verde.
 led_verde.on()
-time.sleep(0.3)
+time.sleep(0.5)
 led_verde.off()
 time.sleep(0.3)
 led_verde.on()
-time.sleep(0.3)
+time.sleep(0.4)
 led_verde.off()
 
 # Inicializar la cámara
 sensor.reset()
-sensor.set_pixformat(sensor.RGB565)
-sensor.set_framesize(sensor.QVGA)
-sensor.skip_frames(time=2000)
-sensor.set_auto_whitebal(False)
-clock = time.clock()
+sensor.set_pixformat(sensor.RGB565)  # Formato de color RGB
+sensor.set_framesize(sensor.QVGA)    # Resolución 320x240
+sensor.skip_frames(time=2000)       # Esperar a que los ajustes se estabilicen
+sensor.set_auto_whitebal(False)     # Desactivar balance de blancos automático
+clock = time.clock()                # Para medir FPS
 
 # Definición de constantes
 h = 18.7   # Altura de la cámara (cm)
 pi = math.pi
 r = 13.5 / (pi * 2)  # Radio de la pelota (cm)
 
-# UMBRALES DE COLOR 
-orange_threshold = (100, 27, 20, 127, 17, 127)    # Naranja
-blue_threshold = (0, 35, 127, 15, -69, -28)   # Azul
-yellow_threshold = (49, 94, -77, 19, 7, 99)    # Amarillo
+# Definir umbrales para el color naranja en LAB (ajustar según necesidad)
+# UMBRALES DE COLOR
+orange_threshold = (16, 100, 28, 70, 6, 102)    # Naranja
+arco_threshold = (21, 100, -28, 25, 30, 127)    # Arco  # (L Min, L Max, A Min, A Max, B Min, B Max)
 
 def map_range(x, in_min, in_max, out_min, out_max):
     return (x - in_min) * (out_max - out_min) // (in_max - in_min) + out_min
 
 def transformarcoordenadas(u, v):
+    # Matriz de transformación homográfica (ajustar según tu calibración)
     H = [[ 4.49341044e-02, -9.48228474e-01,  7.78932109e+02],
          [-2.39913185e+00, -5.65934886e-02,  3.91128921e+02],
          [-1.81344856e-03,  1.15408531e-01,  1.00000000e+00]]
-    
+
+    # Aplicar transformación homográfica manualmente
     denominator = H[2][0]*u + H[2][1]*v + H[2][2]
-    if abs(denominator) < 1e-6:
-        return 0, 0
-    
     x = (H[0][0]*u + H[0][1]*v + H[0][2]) / denominator
     y = (H[1][0]*u + H[1][1]*v + H[1][2]) / denominator
-    return x, y
 
-# Variables para tracking
-objeto_actual = 0
-ultimo_x, ultimo_y, ultimo_angulo = 0, 0, 0
+    return x, y
 
 while(True):
     clock.tick()
-    img = sensor.snapshot()
-    
-    # Apagar todos los LEDs al inicio
-    led_rojo.off()
-    led_azul.off()
-    led_verde.off()
-    
+    img = sensor.snapshot()         # Capturar imagen revisar esta linea luego
+
     # DETECTAR TODOS LOS COLORES SIMULTÁNEAMENTE
     orange_blobs = img.find_blobs([orange_threshold], pixels_threshold=100, area_threshold=100, merge=True)
-    blue_blobs = img.find_blobs([blue_threshold], pixels_threshold=100, area_threshold=100, merge=True)
-    yellow_blobs = img.find_blobs([yellow_threshold], pixels_threshold=100, area_threshold=100, merge=True)
-    
-    blob_detectado = None
-    objeto_seleccionado = 255  # 255 = nada detectado
-    
-    # SISTEMA DE PRIORIDADES
+    arco_blobs = img.find_blobs([arco_threshold], pixels_threshold=100, area_threshold=100, merge=True)
+
+    led_rojo.off()
+
     if orange_blobs:
-        print("Pelota naranja detectada")
+        led_rojo.on()
+
+        # Seleccionar el blob más grande (asumimos que es la pelota)
         largest_blob = max(orange_blobs, key=lambda b: b.pixels())
-        blob_detectado = largest_blob
-        objeto_seleccionado = 0
-        #led_rojo.on()
-        
-    elif blue_blobs:
-        print("Objeto azul detectado")
-        largest_blob = max(blue_blobs, key=lambda b: b.pixels())
-        blob_detectado = largest_blob  
-        objeto_seleccionado = 1
-        #led_azul.on()
-        
-    elif yellow_blobs:
-        print("Objeto amarillo detectado")
-        largest_blob = max(yellow_blobs, key=lambda b: b.pixels())
-        blob_detectado = largest_blob
-        objeto_seleccionado = 2
-        #led_verde.on()
-    
-    # VISUALIZACIÓN DE TODOS LOS OBJETOS DETECTADOS
-    if orange_blobs:
-        for blob in orange_blobs:
-            img.draw_rectangle(blob.rect(), color=(255, 0, 0))
-    
-    if blue_blobs:
-        for blob in blue_blobs:
-            img.draw_rectangle(blob.rect(), color=(0, 0, 255))
-    
-    if yellow_blobs:
-        for blob in yellow_blobs:
-            img.draw_rectangle(blob.rect(), color=(255, 255, 0))
-    
-    # SI SE DETECTÓ ALGÚN OBJETO
-    if blob_detectado:
-      # Dibujar el objeto seleccionado
-      img.draw_rectangle(blob_detectado.rect(), color=(0, 255, 0), thickness=3)
-      img.draw_cross(blob_detectado.cx(), blob_detectado.cy(), color=(0, 255, 255), size=10, thickness=2)
-            
-      # Obtener coordenadas
-      u, v = blob_detectado.cx(), blob_detectado.cy()
-            
-      # Transformar coordenadas
-      x, y = transformarcoordenadas(u, v)
-      X = x * (h - r) / h
-      Y = y * (h - r) / h
-            
-      # Calcular ángulo (¡ESTO YA INDICA LA DIRECCIÓN!)
-      img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
-      a_rad = math.atan2(Y, X)
-      angulo = math.degrees(a_rad)
-            
-      # Guardar últimos valores válidos
-      ultimo_x, ultimo_y, ultimo_angulo = X, Y, angulo
-            
-      print(f"Objeto {objeto_seleccionado}: X={X:.1f}cm, Y={Y:.1f}cm, Angulo={angulo:.1f}°")
-            
-      # ESCALAR A BYTES
-      byteX = map_range(round(X), 0, 100, 0, 200)
-      byteY = map_range(round(Y), -50, 50, 0, 200)
-      byteAng = map_range(round(angulo), -100, 100, 0, 200)
-            
-      # ⚠️ PAQUETE SIMPLIFICADO 
-      packet = [
-        201, byteX,        # Coordenada X (0-200)
-        202, byteY,        # Coordenada Y (0-200) 
-        203, byteAng,      # Ángulo (0-200 = -100° a +100°)
-        205, objeto_seleccionado  # Tipo de objeto
-      ]
-            
-      uart.write(bytearray(packet))
-      print(f"Enviado: X={byteX}, Y={byteY}, Ang={byteAng}, Obj={objeto_seleccionado}")
-    
-    # Mostrar FPS ocasionalmente
-    # if clock.fps() > 0 and clock.frame_count() % 30 == 0:
-        # print(f"FPS: {clock.fps():.1f}")
+
+        # Dibujar un rectángulo alrededor del blob detectado
+        img.draw_rectangle(largest_blob.rect(), color=(255, 0, 0))
+
+        # Dibujar una cruz en el centro del blob
+        img.draw_cross(largest_blob.cx(), largest_blob.cy(), color=(0, 255, 0))
+
+        # Obtener coordenadas del centro
+        up, vp = largest_blob.cx(), largest_blob.cy()
+
+        #CALCULAR DISTANCIA
+        # Transformar a centímetros
+        xp, yp = transformarcoordenadas(up, vp)
+
+        Xp = xp * (h - r) / h
+        Yp = yp * (h - r) / h
+
+        #print(f"Coordenadas físicas de la pelota: {Xp, Yp}")
+
+        #CALCULAR ANGULO
+        # Dibujar línea vertical blanca centrada
+        img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
+
+        a_rad = math.atan2(Yp,Xp)
+        angulo = math.degrees(a_rad)
+        #print(f"angulo: {angulo}")
+
+        # ----------------------------
+        # ⚠️ Escalar a bytes (valores enteros entre 0–200)
+        byteXp = min(max(int(Xp * 2), 0), 200)             # X → 0–100 cm → *2 → 0–200
+        byteYp = min(max(int((Yp + 50) * 2), 0), 200)      # Y → -50 a 50 → +50, *2 → 0–200
+    else:
+        byteXp = 0
+        byteYp = 0
+
+
+    led_azul.off()
+    if arco_blobs:
+        led_azul.on()
+
+        # Seleccionar el blob más grande (asumimos que es la pelota)
+        largest_blob = max(arco_blobs, key=lambda b: b.pixels())
+
+        # Dibujar un rectángulo alrededor del blob detectado
+        img.draw_rectangle(largest_blob.rect(), color=(0, 0, 255))
+
+        # Dibujar una cruz en el centro del blob
+        img.draw_cross(largest_blob.cx(), largest_blob.cy(), color=(0, 255, 0))
+
+        # Obtener coordenadas del centro
+        ua, va = largest_blob.cx(), largest_blob.cy()
+
+        #CALCULAR DISTANCIA
+        # Transformar a centímetros
+        xa, ya = transformarcoordenadas(ua, va)
+
+        Xa = xa * (h - r) / h
+        Ya = ya * (h - r) / h
+
+        #print(f"Coordenadas físicas del arco: {Xa, Ya}")
+
+        #CALCULAR ANGULO
+        # Dibujar línea vertical blanca centrada
+        img.draw_line((160, 0, 160, 240), color=(255, 255, 255))
+
+        # ----------------------------
+        # ⚠️ Escalar a bytes (valores enteros entre 0–200)
+        byteXa = min(max(int(Xa * 2), 0), 200)             # X → 0–100 cm → *2 → 0–200
+        byteYa = min(max(int((Ya + 50) * 2), 0), 200)      # Y → -50 a 50 → +50, *2 → 0–200
+    else:
+        byteXa = 0
+        byteYa = 0
+
+    # Armar paquete
+    packet = [
+    201, byteXp, byteYp,
+    202, byteXa, byteYa
+    ]
+
+    print("Enviando:", packet)
+    uart.write(bytearray(packet))
+
+# signo angulo
+#    izquierda +
+#    derecha -
+#Mostrar FPS (opcional)
+#print("FPS:", clock.fps())
