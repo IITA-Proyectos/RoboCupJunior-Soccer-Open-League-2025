@@ -47,33 +47,28 @@ unsigned long empezo_patada_ade = 0;
 unsigned long empezo_patada_atr = 0; 
 
 unsigned long empezo_giro = 0;
-bool giro_iniciado = false;
+bool giro_en_progreso = false; 
 
-void girar() {
-  // Iniciar el giro solo una vez
-  if (!giro_iniciado) {
-    empezo_giro = millis();
-    giro_iniciado = true;
-  }
-
-  // Determinar el tiempo transcurrido
+void girar() 
+{
+  empezo_giro = millis();
   unsigned long tiempo_transcurrido = millis() - empezo_giro;
 
-  if (tiempo_transcurrido <= 50) {
-    // Girar a máxima potencia durante 50ms
+  if (tiempo_transcurrido <= 50) 
+  {
+    // Aceleración inicial
     motor1(100, 0);
     motor2(100, 0);
     motor3(100, 0);
-  } else {
-    // Después, girar a baja potencia
+  }
+  else 
+  {
+    // Velocidad reducida
     motor1(50 * g, 0);
     motor2(50 * g, 0);
     motor3(50 * g, 0);
   }
-
-  // horario
 }
-
 
 void detenerMotores() 
 {
@@ -287,9 +282,4 @@ switch(trackingState)
 }
 
      
-}
-  
-      
-      
-
-
+} 
