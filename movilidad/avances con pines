@@ -1,0 +1,68 @@
+#include <Arduino.h>
+  #include <Wire.h>
+  #include <Adafruit_Sensor.h>
+  #include <Adafruit_BNO055.h>
+
+
+#define INA1 2
+#define INB1 5
+#define PWM1 3
+
+#define INA2 8
+#define INB2 7
+#define PWM2 6
+
+#define INA3 11
+#define INB3 12
+#define PWM3 4
+#define START_BYTE 0xAA
+void setup() {
+  Serial.begin(9600); 
+}
+//avance de frente 
+void af() {
+  digitalWrite(INA3, 0);
+  digitalWrite(INB3, 1);
+  analogWrite(PWM3, 0);
+
+  digitalWrite(INA2, 0);
+  digitalWrite(INB2, 1);
+  analogWrite(PWM2, 100);
+
+  digitalWrite(INA1, 1);
+  digitalWrite(INB1, 0);
+  analogWrite(PWM1, 100);
+}
+  //detene robot
+  void parar() {
+  digitalWrite(INA3, 0);
+  digitalWrite(INB3, 0);
+  analogWrite(PWM3, 0);
+
+  digitalWrite(INA2, 0);
+  digitalWrite(INB2, 0);
+  analogWrite(PWM2, 0);
+
+  digitalWrite(INA1, 0);
+  digitalWrite(INB1, 0);
+  analogWrite(PWM1, 0);
+  }
+  //avance haci atras 
+   void aa() {
+  digitalWrite(INA3, 1);
+  digitalWrite(INB3, 0);
+  analogWrite(PWM3, 0);
+
+  digitalWrite(INA2, 1);
+  digitalWrite(INB2, 0);
+  analogWrite(PWM2, 100);
+
+  digitalWrite(INA1, 0);
+  digitalWrite(INB1, 1);
+  analogWrite(PWM1, 100);
+   }
+   void loop(void) 
+ {
+  af();
+ }
+
