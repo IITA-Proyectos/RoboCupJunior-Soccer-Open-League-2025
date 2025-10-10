@@ -22,7 +22,7 @@ const long BAUD_RATE = 19200;
 
 // Velocidades 
   float k; 
-  float g = 0.6;
+  float g = 0.4;
    
 // Variables decodificadas
   float decodedXp = 0.0;
@@ -39,35 +39,17 @@ const long BAUD_RATE = 19200;
   const float tolerancia_cercania = 19.0;  // que tan cerca esta de la pelota el robot 
 
 // Estados del seguimiento
-enum TrackingState {GIRANDO, CENTRANDO, AVANZANDO, PATEANDO};
+enum TrackingState {GIRANDO, CENTRANDO, AVANZANDO, PATEANDO_adelante};
 TrackingState trackingState = GIRANDO;
 
-// para patear 
-unsigned long empezo_patada_ade = 0;
-unsigned long empezo_patada_atr = 0; 
-
-unsigned long empezo_giro = 0;
-bool giro_en_progreso = false; 
+unsigned long millis_inicio_estado = 0; 
 
 void girar() 
 {
-  empezo_giro = millis();
-  unsigned long tiempo_transcurrido = millis() - empezo_giro;
-
-  if (tiempo_transcurrido <= 50) 
-  {
-    // Aceleración inicial
-    motor1(100, 0);
-    motor2(100, 0);
-    motor3(100, 0);
-  }
-  else 
-  {
     // Velocidad reducida
-    motor1(50 * g, 0);
-    motor2(50 * g, 0);
-    motor3(50 * g, 0);
-  }
+    motor1(100 * g, 0);
+    motor2(100 * g, 0);
+    motor3(100 * g, 0);
 }
 
 void detenerMotores() 
@@ -99,17 +81,17 @@ void setup()
 //  initialYaw   = event.orientation.x; // 0..360
 //  
   InitializeZircon();
-//while(true)
-//{
-//  girar();
-//  delay(2000);
-//  
-//  avanzarAlFrente();
-//  delay(2000);
-//
-//  detenerMotores();
-//  delay(2000);
-//} 
+  //while(true)
+  //{
+  //  girar();
+  //  delay(2000);
+  //  
+  //  avanzarAlFrente();
+  //  delay(2000);
+  //
+  //  detenerMotores();
+  //  delay(2000);
+  //} 
   
   Serial.begin(BAUD_RATE);
   Serial.println("estamos en setup");
@@ -214,7 +196,7 @@ switch(trackingState)
     break;
 
  case AVANZANDO: 
-    detenerMotores();
+    avanzarAlFrente(); 
 
     if ( haypelota == true && decodedXp <= tolerancia_cercania ) 
     {
@@ -246,40 +228,28 @@ switch(trackingState)
     }
     if( hayarco && haypelota && abs(decodedYa)- abs(decodedYp) <= tolerancia_centrado)
     {  
-      trackingState = PATEANDO;
+      trackingState = PATEANDO_adelante; 
+      millis_inicio_estado = millis();
+      
     }
     break; 
 
- case PATEANDO: 
+ case PATEANDO_adelante: 
 
-    empezo_patada_ade = millis();
     motor2(100, 0);
     motor1(100, 1);
-    motor3(0, 0);
-    if(millis() - empezo_patada_ade <= 1000)
+    motor3(0, 0); 
+    
+    if(millis() - millis_inicio_estado <= 2000)
     {
       motor2(0, 0);
       motor1(0, 1);
       motor3(0, 0); 
-
-      empezo_patada_atr = millis();
-      motor2(100, 1);
-      motor1(100, 0);
-      motor3(0, 0);
-      
-      if( millis() - empezo_patada_atr <= 1000 )
-      {
-        motor2(0, 0);
-        motor1(0, 1);
-        motor3(0, 0);
-      }
+      trackingState = GIRANDO;   
     }
-    
-    trackingState = GIRANDO;   
     
     break;
     
 }
-
-     
+    
 } 
