@@ -6,7 +6,7 @@ void setZirconVersion();
 
 void InitializeZircon();
 
-void CalibrateCompass();
+//void CalibrateCompass();
 
 double readCompass();
 
