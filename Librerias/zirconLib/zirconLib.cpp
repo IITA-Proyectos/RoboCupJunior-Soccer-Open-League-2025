@@ -43,7 +43,7 @@ void InitializeZircon() {
   initializePins();
 
 
-  CalibrateCompass();
+  //CalibrateCompass();
   
   
   
@@ -59,7 +59,7 @@ void setZirconVersion() {
   }
 }
 
-void CalibrateCompass() {
+/**void CalibrateCompass() {
   if (ZirconVersion == "Mark1") {
     bno = Adafruit_BNO055(55, 0x28, &Wire);
   } else if (ZirconVersion == "Naveen1") {
@@ -89,7 +89,7 @@ void CalibrateCompass() {
   }
 
   
-}
+}**/
 
 double readCompass() {
   if (compassCalibrated) {
@@ -348,4 +348,8 @@ String getZirconVersion() {
 
 bool isCompassCalibrated() {
   return compassCalibrated;
+}
+
+
+
 }
