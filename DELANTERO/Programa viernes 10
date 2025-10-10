@@ -1,0 +1,220 @@
+#include <Arduino.h>
+#include <zirconLib.h>
+#include <Wire.h> 
+#include <Adafruit_Sensor.h> 
+#include <Adafruit_BNO055.h>
+
+// Pines motores
+#define INA1 2
+#define INB1 5
+#define PWM1 3
+
+#define INA2 8
+#define INB2 7
+#define PWM2 6
+
+#define INA3 11
+#define INB3 12
+#define PWM3 4
+
+// Comunicación serial
+#define START_BYTE 0xAA
+const long BAUD_RATE = 19200;
+
+// Variables ángulos
+float anguloRadPelota, anguloPelota;
+float anguloRadArco, anguloArco;
+
+// Variables velocidades
+float k;
+float g = 0.4;
+
+// Posiciones decodificadas
+float decodedXp = 0.0, decodedYp = 0.0;
+float decodedXa = 0.0, decodedYa = 0.0;
+
+// Presencia de objetos
+bool haypelota = false;
+bool hayarco = false;
+
+// Tolerancias
+const float tolerancia_centrado = 5.0;
+const float tolerancia_cercania = 30.0;
+
+// Máquina de estados
+enum Estado { GIRANDO, AVANZANDO, CENTRANDO, PATEANDO_adelante, PATEANDO_atras, PATEANDO_pausa, GIRANDO_TIEMPO };
+Estado estado = GIRANDO;
+
+unsigned long millis_inicio_estado = 0;
+
+// ---- FUNCIONES DE MOVIMIENTO ----
+
+void girar() {
+  analogWrite(PWM1, 100 * g); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+  analogWrite(PWM2, 100 * g); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+  analogWrite(PWM3, 100 * g); digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+}
+
+void parar() {
+  analogWrite(PWM1, 0); digitalWrite(INA1, 0); digitalWrite(INB1, 0);
+  analogWrite(PWM2, 0); digitalWrite(INA2, 0); digitalWrite(INB2, 0);
+  analogWrite(PWM3, 0); digitalWrite(INA3, 0); digitalWrite(INB3, 0);
+}
+void af() {
+  analogWrite(PWM1, 100); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
+  analogWrite(PWM2, 100); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+  analogWrite(PWM3, 0);   digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+}
+void ap() {
+  analogWrite(PWM1, 250); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
+  analogWrite(PWM2, 250); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+  analogWrite(PWM3, 0);   digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+}
+
+void aa() {
+  analogWrite(PWM1, 150); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+  analogWrite(PWM2, 150); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+  analogWrite(PWM3, 0);   digitalWrite(INA3, 1); digitalWrite(INB3, 0);
+}
+
+// ---- SETUP ----
+void setup() {
+  InitializeZircon();
+  Serial.begin(BAUD_RATE);
+  Serial1.begin(BAUD_RATE);
+
+  Serial.println("Decodificador iniciado");
+}
+
+// ---- LOOP ----
+void loop() {
+  // Lectura de datos serial
+  if (Serial1.available() >= 6)
+  {
+    int header1 = Serial1.read();
+    int xp = Serial1.read();
+    int yp = Serial1.read();
+    int header2 = Serial1.read(); 
+    int xa = Serial1.read();
+    int ya = Serial1.read();
+
+    if (header1 == 201 && header2 == 202)
+    {
+      decodedXp = xp / 2.0;
+      decodedXa = xa / 2.0;
+      decodedYp = (yp / 2.0) - 50.0; 
+      decodedYa = (ya / 2.0) - 50.0; 
+
+      // Calcular el ángulo en radianes
+        anguloRadPelota = atan2(decodedYp, decodedXp);
+      // Convertir a grados
+        anguloPelota = anguloRadPelota * 180.0 / PI;
+      // Calcular el ángulo en radianes
+        anguloRadArco = atan2(decodedYp, decodedXp);
+      // Convertir a grados
+        anguloArco = anguloRadArco * 180.0 / PI;
+
+//      // Mostrar datos
+//      Serial.print("X pelota: "); Serial.print(decodedXp);
+//      Serial.print(" | Y pelota: "); Serial.print(decodedYp);
+//      Serial.print(" | X arco: "); Serial.print(decodedXa);
+//      Serial.print(" | Y arco: "); Serial.println(decodedYa);
+
+      if ( xp == 0 )
+      {
+        haypelota = false;  
+      }
+      else
+      {
+        haypelota = true;
+      }
+      if ( xa == 0 )
+      {
+        hayarco = false;  
+      }
+      else
+      {
+        hayarco = true;
+      }
+      Serial.print("arco: "); Serial.print(hayarco);
+      Serial.print("| pelota: "); Serial.println(haypelota);
+      
+    }
+      
+  }
+
+  // Máquina de estados
+  switch (estado) {
+    case GIRANDO:
+      if (haypelota) {
+        estado = AVANZANDO;
+      } else {
+        girar();
+      }
+      break;
+
+    case AVANZANDO:
+      af();
+      if (haypelota == false) {
+        estado = GIRANDO;
+      } else if (haypelota && decodedXp <= tolerancia_cercania) {
+        estado = CENTRANDO;
+      }
+      break;
+
+    case CENTRANDO:
+      k = 0.4;
+      
+        analogWrite(PWM1, 60 * k); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+        analogWrite(PWM2, 60 * k); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+        analogWrite(PWM3, 200 * k); digitalWrite(INA3, 1); digitalWrite(INB3, 0);
+//      } else if (decodeYa < 0)  {
+//        analogWrite(PWM1, 60 * k); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
+//        analogWrite(PWM2, 60 * k); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+//        analogWrite(PWM3, 100 * k); digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+//        else if (xa == 0)
+//        
+//      }
+
+      if (haypelota && hayarco) {
+        estado = PATEANDO_adelante;
+        millis_inicio_estado = millis();
+      }
+      break;
+    
+    case GIRANDO_TIEMPO:
+    Serial.println("girando"); 
+    girar();  
+    if ( millis() - millis_inicio_estado >= 1000)
+   {
+    estado = PATEANDO_adelante; 
+    millis_inicio_estado = millis();
+   }
+
+    case PATEANDO_adelante:
+      ap();
+      if (millis() - millis_inicio_estado >= 200) {
+        parar();
+        estado = PATEANDO_pausa;
+        millis_inicio_estado = millis();
+      }
+      break;
+
+    case PATEANDO_pausa: 
+      parar();
+      if (millis() - millis_inicio_estado >= 1000) {
+        estado = PATEANDO_atras;
+        millis_inicio_estado = millis();
+      }  
+      break;
+      
+    case PATEANDO_atras: 
+      aa();
+      if (millis() - millis_inicio_estado >= 400) {
+        parar();
+        estado = GIRANDO;
+        millis_inicio_estado = millis();
+      }  
+      break;
+  }
+}
