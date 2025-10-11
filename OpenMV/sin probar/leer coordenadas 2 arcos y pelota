@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include <zirconLib.h>
 
 // Comunicación serial
 const long BAUD_RATE = 19200;
