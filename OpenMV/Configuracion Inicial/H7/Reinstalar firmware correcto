@@ -1,0 +1,16 @@
+1. Herramientas → Cargar firmware personalizado (Control + Mayúsculas + L)
+Aquí vas a poder seleccionar manualmente el archivo .bin correcto (para H7 no Plus: openmv_cam_h7.bin).
+
+⚠️ No selecciones el openmv_cam_h7plus.bin.
+
+Alternativamente (si necesitás reinstalar desde el bootloader):
+
+Primero, seguí los pasos de botones BOOT + RESET para que la cámara se monte como BOOT.
+
+Después en el IDE: Herramientas → Cargar firmware personalizado y elegís el archivo correcto.
+
+Al terminar, reiniciá la cámara y revisá:
+
+Herramientas → Versión del firmware
+
+Debe decir OpenMV Cam H7 y sensor OV7725.
