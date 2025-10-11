@@ -1,0 +1,14 @@
+main.py         ← tu script
+boot.py         ← archivo del sistema
+openmv_logo.bmp ← opcional
+
+Pasos:
+  1. Abrí Herramientas → Borrar el sistema de archivos de grasa interna (Control + Mayúsculas + E)
+   Esto borra todos los archivos que hayas puesto, pero no toca el firmware ni el bootloader.
+
+  2. Después de esto podés copiar tu main.py nuevamente o crear uno nuevo.
+  Para restaurar un script predeterminado:
+  Herramientas → Restablecer OpenMV Cam
+  Esto recrea un main.py de ejemplo y deja la memoria lista.
+
+🔹 Importante: No uses “Cargar firmware personalizado” todavía, solo esto si tu problema era borrar archivos. 
