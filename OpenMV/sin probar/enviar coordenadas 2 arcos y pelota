@@ -51,9 +51,9 @@ r = 13.5/(2*math.pi)  # radio pelota (cm)
 # A (Canal de color verde–rojo) : -10 a 10 → colores casi neutros en rojo-verde
 # B (Canal de color azul–amarillo) : 20 a 70 → tonos amarillos moderados
 
-naranja_threshold = (76, 18, 13, 88, 6, 127)    # Pelota naranja 
-amarillo_threshold = (0, 79, -22, -8, 46, 127) # Arco amarillo 
-azul_threshold = (31, 19, -36, 60, -61, 5)    # Arco azul 
+naranja_threshold = (37, 61, 10, 56, 25, 127)    # Pelota naranja 
+amarillo_threshold = (0, 80, -23, 4, 35, 118) # Arco amarillo 
+azul_threshold = (20, 44, -33, 18, -52, -3)    # Arco azul 
 
 
 # ----- Funciones -----
@@ -118,10 +118,18 @@ while(True):
     amarillo_blobs = img.find_blobs([amarillo_threshold], pixels_threshold=100, area_threshold=100, merge=True)
     
     # Encender LEDs según detección
-    led_rojo.value(bool(naranja_blobs))
-    led_azul.value(bool(azul_blobs))
-    led_verde.value(bool(amarillo_blobs))
+    led_rojo.off()
+    if naranja_blobs:
+        led_rojo.on()
+
+    led_azul.off()
+    if azul_blobs:
+        led_azul.on()
     
+    led_verde.off()
+    if amarillo_blobs:
+        led_verde.on()
+        
     # Procesar blobs
     Xp, Yp = procesar_blob(naranja_blobs, (255,0,0))
     Xaz, Yaz = procesar_blob(azul_blobs, (0,0,255))
