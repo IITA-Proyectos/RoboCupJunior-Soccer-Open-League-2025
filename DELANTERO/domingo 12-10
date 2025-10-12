@@ -16,7 +16,16 @@
 #define INA3 11
 #define INB3 12
 #define PWM3 4
-
+//giroscopo
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
+float correccion;
+float error = 0;
+float initialYaw = 0;
+float currentYaw;
+float kp = 0.3;
+//variables movilidad 
+int potencia1=100 ;
+int potencia2=100;
 // Comunicación serial
 #define START_BYTE 0xAA
 const long BAUD_RATE = 19200;
@@ -42,12 +51,83 @@ const float tolerancia_centrado = 5.0;
 const float tolerancia_cercania = 30.0;
 
 // Máquina de estados
-enum Estado { GIRANDO, AVANZANDO, CENTRANDO, PATEANDO_adelante, PATEANDO_atras, PATEANDO_pausa, GIRANDO_TIEMPO, DETECTA_LINEA };
+enum Estado { GIRANDO, AVANZANDO, CENTRANDO, PATEANDO_adelante, PATEANDO_atras, PATEANDO_pausa, GIRANDO_TIEMPO, DETECTA_LINEA_1, DETECTA_LINEA_2, DETECTA_LINEA_3, CENTRANDO_POR_GIROSCOPO };
 Estado estado = GIRANDO;
 
 unsigned long millis_inicio_estado = 0;
-
 // ---- FUNCIONES DE MOVIMIENTO ----
+
+void avance_proporcional() {
+  if(error>-2 && error<2){
+  digitalWrite(INA3, 0);digitalWrite(INB3, 1);analogWrite(PWM3, 0);
+  digitalWrite(INA2, 0);digitalWrite(INB2, 1);analogWrite(PWM2, 100);
+  digitalWrite(INA1, 1);digitalWrite(INB1, 0);analogWrite(PWM1,100);
+  }
+  else if (error > 0){ 
+   digitalWrite(INA3, 0);digitalWrite(INB3, 1);analogWrite(PWM3, 0 );
+   digitalWrite(INA2, 0);digitalWrite(INB2, 1);analogWrite(PWM2, 100 );
+   digitalWrite(INA1, 1);digitalWrite(INB1, 0);analogWrite(PWM1, 90);
+  }
+  else if (error < 0){
+   digitalWrite(INA3, 0);digitalWrite(INB3, 1);analogWrite(PWM3, 0 );
+   digitalWrite(INA2, 0);digitalWrite(INB2, 1);analogWrite(PWM2, 100 );
+   digitalWrite(INA1, 1);digitalWrite(INB1, 0);analogWrite(PWM1, 90);
+  }
+}
+// FUNCION AVANCE DEReCHA PROPORCIONAL 
+void adproporcional() {
+  if (error>-2 && error <2){
+  digitalWrite(INA3, 0);digitalWrite(INB3, 1);analogWrite(PWM3, 50);//60
+  digitalWrite(INA2, 0);digitalWrite(INB2, 1);analogWrite(PWM2, 50);//60
+  digitalWrite(INA1, 1);digitalWrite(INB1, 0);analogWrite(PWM1, 89);//99
+  }
+  else if (error > 0){ 
+   digitalWrite(INA3, 0);digitalWrite(INB3, 1);analogWrite(PWM3, 50 );//60
+   digitalWrite(INA2, 0);digitalWrite(INB2, 1);analogWrite(PWM2, 50 );//60
+   digitalWrite(INA1, 1);digitalWrite(INB1, 0);analogWrite(PWM1, 40);//50
+  }
+  else if (error < 0){
+   digitalWrite(INA3, 0);digitalWrite(INB3, 1);analogWrite(PWM3, 65 );//75
+   digitalWrite(INA2, 0);digitalWrite(INB2, 1);analogWrite(PWM2, 40 );//50
+   digitalWrite(INA1, 1);digitalWrite(INB1, 0);analogWrite(PWM1, 100);//120
+  }
+}
+  //FUNCION AVANCE IZQUIERDO 
+  void aiproporcional() {
+  if (error>-2 && error <2){
+  digitalWrite(INA3, 1);digitalWrite(INB3, 0);analogWrite(PWM3, 50);//60
+  digitalWrite(INA2, 1);digitalWrite(INB2, 0);analogWrite(PWM2, 50);//60
+  digitalWrite(INA1, 0);digitalWrite(INB1, 1);analogWrite(PWM1, 89);//99
+  }
+  else if (error > 0){ 
+   //motor izquierdo
+   digitalWrite(INA3, 1);
+   digitalWrite(INB3, 0);
+   analogWrite(PWM3, 50 );//60
+   //motor derecho
+   digitalWrite(INA2, 1);
+   digitalWrite(INB2, 0);
+   analogWrite(PWM2, 50 );//60
+   //motor atras
+   digitalWrite(INA1, 0);
+   digitalWrite(INB1, 1);
+   analogWrite(PWM1, 100);//120
+  }
+  else if (error < 0){
+   //motor izquierdo
+   digitalWrite(INA3, 1);
+   digitalWrite(INB3, 0);
+   analogWrite(PWM3, 65 );//75
+   //motor derecho
+   digitalWrite(INA2, 1);
+   digitalWrite(INB2, 0);
+   analogWrite(PWM2, 40);//50
+   //motor atras
+   digitalWrite(INA1, 0);
+   digitalWrite(INB1, 1);
+   analogWrite(PWM1, 40);//50
+  }
+}
 
 void girar() {
   analogWrite(PWM1, 100 * g); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
@@ -67,28 +147,28 @@ void avanzar() {
 }
 // RETROCEDER
 void retroceder1() {
-  analogWrite(PWM1, 100); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
-  analogWrite(PWM2, 100); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
-  analogWrite(PWM3, 0);   digitalWrite(INA3, 1); digitalWrite(INB3, 0);
-}
-void retroceder2() {
-  analogWrite(PWM1, 100); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
-  analogWrite(PWM2, 0); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+  analogWrite(PWM1, 0); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+  analogWrite(PWM2, 100); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
   analogWrite(PWM3, 100);   digitalWrite(INA3, 1); digitalWrite(INB3, 0);
 }
+void retroceder2() {
+  analogWrite(PWM1, 100); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
+  analogWrite(PWM2, 0); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+  analogWrite(PWM3, 100);   digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+}
 void retroceder3() {
-  analogWrite(PWM1, 0); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+  analogWrite(PWM1, 100); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
   analogWrite(PWM2, 100); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
-  analogWrite(PWM3, 100);   digitalWrite(INA3, 0); digitalWrite(INB3, 1;
+  analogWrite(PWM3, 0);   digitalWrite(INA3, 0); digitalWrite(INB3, 1);
 }
 
-void avanzar_p() {
+void avanzar_patear() {
   analogWrite(PWM1, 250); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
   analogWrite(PWM2, 250); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
   analogWrite(PWM3, 0);   digitalWrite(INA3, 0); digitalWrite(INB3, 1);
 }
 
-void retroceder_p() {
+void retroceder_patear() {
   analogWrite(PWM1, 150); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
   analogWrite(PWM2, 150); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
   analogWrite(PWM3, 0);   digitalWrite(INA3, 1); digitalWrite(INB3, 0);
@@ -96,17 +176,33 @@ void retroceder_p() {
 
 // ---- SETUP ----
 void setup() {
-  
   InitializeZircon();
   Serial.begin(BAUD_RATE);
   Serial1.begin(BAUD_RATE);
 
-  retroceder2();
+  while(millis()<= 5000){
+    avance_proporcional;
+  }
   Serial.println("Decodificador iniciado");
-}
 
+  //----------GIROSCOPO-------
+  if (!bno.begin()) {
+    Serial.println("¡No se pudo encontrar el BNO055!");
+    while (1);
+  }
+  bno.setExtCrystalUse(true);
+
+ sensors_event_t event;
+  bno.getEvent(&event);
+  initialYaw   = event.orientation.x; // 0..360
+}
 // ---- LOOP ----
 void loop() {
+  // GIROSCOPO
+  sensors_event_t event;
+  bno.getEvent(&event);
+  currentYaw   = event.orientation.x;
+//_______________________________________________________
   // Lectura de datos serial
   if (Serial1.available() >= 6)
   {
@@ -173,7 +269,7 @@ void loop() {
 //  Serial.println(s3);
 //  
 
-  // Máquina de estados
+// Máquina de estados
   switch (estado) {
     case GIRANDO:
       if (haypelota) 
@@ -242,7 +338,7 @@ void loop() {
 //        
 //      }
 
-      if (haypelota && hayarco) {
+      if (hayarco) {
         estado = PATEANDO_adelante;
         millis_inicio_estado = millis();
       } 
@@ -252,6 +348,13 @@ void loop() {
         millis_inicio_estado = millis();
       } 
 
+      if ( (millis() - millis_inicio_estado >= 3500)  && hayarco==false)
+      {
+        estado = CENTRANDO_POR_GIROSCOPO; 
+        millis_inicio_estado = millis(); 
+      }
+
+      
       if ( s1 >= 700 )
       { 
         estado = DETECTA_LINEA_1; 
@@ -273,7 +376,7 @@ void loop() {
     case GIRANDO_TIEMPO:
     Serial.println("girando"); 
     girar();  
-    if ( millis() - millis_inicio_estado >= 1000)
+    if ( millis() - millis_inicio_estado >= 1000 )
     {
       estado = PATEANDO_adelante; 
       millis_inicio_estado = millis();
@@ -296,7 +399,7 @@ void loop() {
     }
 
     case PATEANDO_adelante:
-      retroceder_p();
+      retroceder_patear();
       if (millis() - millis_inicio_estado >= 200) {
         parar();
         estado = PATEANDO_pausa;
@@ -345,7 +448,7 @@ void loop() {
     break;
       
     case PATEANDO_atras: 
-      avanzar_p();
+      avanzar_patear();
       if (millis() - millis_inicio_estado >= 400) 
       {
         parar();
@@ -369,6 +472,11 @@ void loop() {
         millis_inicio_estado = millis();
       }
     break; 
+
+    case CENTRANDO_POR_GIROSCOPO: 
+    { 
+      
+    }
 
     case DETECTA_LINEA_1: 
       retroceder1(); 
