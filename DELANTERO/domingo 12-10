@@ -65,11 +65,23 @@ void avanzar() {
   analogWrite(PWM2, 100); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
   analogWrite(PWM3, 0);   digitalWrite(INA3, 0); digitalWrite(INB3, 1);
 }
-void retroceder() {
+// RETROCEDER
+void retroceder1() {
   analogWrite(PWM1, 100); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
   analogWrite(PWM2, 100); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
   analogWrite(PWM3, 0);   digitalWrite(INA3, 1); digitalWrite(INB3, 0);
 }
+void retroceder2() {
+  analogWrite(PWM1, 100); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+  analogWrite(PWM2, 0); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+  analogWrite(PWM3, 100);   digitalWrite(INA3, 1); digitalWrite(INB3, 0);
+}
+void retroceder3() {
+  analogWrite(PWM1, 0); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+  analogWrite(PWM2, 100); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+  analogWrite(PWM3, 100);   digitalWrite(INA3, 0); digitalWrite(INB3, 1;
+}
+
 void avanzar_p() {
   analogWrite(PWM1, 250); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
   analogWrite(PWM2, 250); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
@@ -84,10 +96,12 @@ void retroceder_p() {
 
 // ---- SETUP ----
 void setup() {
+  
   InitializeZircon();
   Serial.begin(BAUD_RATE);
   Serial1.begin(BAUD_RATE);
 
+  retroceder2();
   Serial.println("Decodificador iniciado");
 }
 
@@ -171,11 +185,22 @@ void loop() {
         girar();
       } 
       
-      if ( s1 >= 700 || s2 >= 700 || s3 >= 700 )
+      if ( s1 >= 700 )
       { 
-        estado = DETECTA_LINEA; 
+        estado = DETECTA_LINEA_1; 
         millis_inicio_estado = millis();
       }
+      if ( s2 >= 700 )
+      { 
+        estado = DETECTA_LINEA_2; 
+        millis_inicio_estado = millis();
+      }
+      if ( s3 >= 700 )
+      { 
+        estado = DETECTA_LINEA_3; 
+        millis_inicio_estado = millis();
+      }
+
       break;
 
     case AVANZANDO:
@@ -186,9 +211,19 @@ void loop() {
         estado = CENTRANDO;
       } 
      
-      if ( s1 >= 650 || s2 >= 650 || s3 >= 650 )
+      if ( s1 >= 700 )
       { 
-        estado = DETECTA_LINEA; 
+        estado = DETECTA_LINEA_1; 
+        millis_inicio_estado = millis();
+      }
+      if ( s2 >= 700 )
+      { 
+        estado = DETECTA_LINEA_2; 
+        millis_inicio_estado = millis();
+      }
+      if ( s3 >= 700 )
+      { 
+        estado = DETECTA_LINEA_3; 
         millis_inicio_estado = millis();
       }
       break;
@@ -212,25 +247,51 @@ void loop() {
         millis_inicio_estado = millis();
       } 
       
-      if ( s1 >= 650 || s2 >= 650 || s3 >= 650 )
+      if (haypelota == false) {
+        estado = GIRANDO;
+        millis_inicio_estado = millis();
+      } 
+
+      if ( s1 >= 700 )
       { 
-        estado = DETECTA_LINEA;
+        estado = DETECTA_LINEA_1; 
         millis_inicio_estado = millis();
       }
+      if ( s2 >= 700 )
+      { 
+        estado = DETECTA_LINEA_2; 
+        millis_inicio_estado = millis();
+      }
+      if ( s3 >= 700 )
+      { 
+        estado = DETECTA_LINEA_3; 
+        millis_inicio_estado = millis();
+      }
+
       break;
     
     case GIRANDO_TIEMPO:
     Serial.println("girando"); 
     girar();  
     if ( millis() - millis_inicio_estado >= 1000)
-   {
-    estado = PATEANDO_adelante; 
-    millis_inicio_estado = millis();
-   }
+    {
+      estado = PATEANDO_adelante; 
+      millis_inicio_estado = millis();
+    }
     
-    if ( s1 >= 650 || s2 >= 650 || s3 >= 650 )
+    if ( s1 >= 700 )
     { 
-      estado = DETECTA_LINEA;
+      estado = DETECTA_LINEA_1; 
+      millis_inicio_estado = millis();
+    }
+    if ( s2 >= 700 )
+    { 
+      estado = DETECTA_LINEA_2; 
+      millis_inicio_estado = millis();
+    }
+    if ( s3 >= 700 )
+    { 
+      estado = DETECTA_LINEA_3; 
       millis_inicio_estado = millis();
     }
 
@@ -242,12 +303,22 @@ void loop() {
         millis_inicio_estado = millis();
       }
       
-      if ( s1 >= 650 || s2 >= 650 || s3 >= 650 )
+      if ( s1 >= 700 )
       { 
-        estado = DETECTA_LINEA;
+        estado = DETECTA_LINEA_1; 
         millis_inicio_estado = millis();
       }
-      break;
+      if ( s2 >= 700 )
+      { 
+        estado = DETECTA_LINEA_2; 
+        millis_inicio_estado = millis();
+      }
+      if ( s3 >= 700 )
+      { 
+        estado = DETECTA_LINEA_3; 
+        millis_inicio_estado = millis();
+      }
+    break;
 
     case PATEANDO_pausa: 
       parar();
@@ -256,12 +327,22 @@ void loop() {
         millis_inicio_estado = millis();
       }  
       
-      if ( s1 >= 650 || s2 >= 650 || s3 >= 650 )
+      if ( s1 >= 700 )
       { 
-        estado = DETECTA_LINEA; 
+        estado = DETECTA_LINEA_1; 
         millis_inicio_estado = millis();
       }
-      break;
+      if ( s2 >= 700 )
+      { 
+        estado = DETECTA_LINEA_2; 
+        millis_inicio_estado = millis();
+      }
+      if ( s3 >= 700 )
+      { 
+        estado = DETECTA_LINEA_3; 
+        millis_inicio_estado = millis();
+      }
+    break;
       
     case PATEANDO_atras: 
       avanzar_p();
@@ -272,15 +353,43 @@ void loop() {
         millis_inicio_estado = millis();
       }
       
-      if ( s1 >= 650 || s2 >= 650 || s3 >= 650 )
+      if ( s1 >= 700 )
       { 
-        estado = DETECTA_LINEA; 
+        estado = DETECTA_LINEA_1; 
         millis_inicio_estado = millis();
-      }  
+      }
+      if ( s2 >= 700 )
+      { 
+        estado = DETECTA_LINEA_2; 
+        millis_inicio_estado = millis();
+      }
+      if ( s3 >= 700 )
+      { 
+        estado = DETECTA_LINEA_3; 
+        millis_inicio_estado = millis();
+      }
+    break; 
+
+    case DETECTA_LINEA_1: 
+      retroceder1(); 
+      if (millis() - millis_inicio_estado >= 400)
+      {
+        parar();
+        estado = GIRANDO; 
+      }
+    break; 
+
+    case DETECTA_LINEA_2: 
+      retroceder2(); 
+      if (millis() - millis_inicio_estado >= 400)
+      {
+        parar();
+        estado = GIRANDO; 
+      }
       break; 
 
-    case DETECTA_LINEA: 
-      retroceder(); 
+    case DETECTA_LINEA_3: 
+      retroceder3(); 
       if (millis() - millis_inicio_estado >= 400)
       {
         parar();
