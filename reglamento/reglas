@@ -1,0 +1,64 @@
+1_cuanto duran los partidos
+La duración de cada mitad es de 10 minutos. Habrá un descanso de 5 minutos entre las mitades.
+
+2_donde se posicionan los robot y la pelota en cuanto inician
+Todos los robots deben estar ubicados en su propio lado del campo. Todos los robots deben estar detenidos. El balón es colocado por un árbitro en el centro del campo.
+El equipo que inicia coloca sus robots en el campo primero. El equipo que no inicia el saque ahora colocará sus robots en el extremo defensivo del campo.
+Todos los robots del equipo que no está sacando deben estar al menos a 30 cm de la pelota (fuera del círculo central).
+
+3_cuales son las faltas? cuando hay una falta que pasa con el juego? donde reinicia?
+Si un robot toca una pared o se mueve completamente dentro del área de penalti, se considerará que está fuera de los límites.
+Cuando se presente esta situación, el robot será retirado del campo por una penalización de un minuto.
+No se detiene el tiempo del juego en sí. El robot puede regresar si se realiza un saque desde el centro antes de que termine la penalización.
+La penalización de un minuto comienza cuando el robot es retirado del juego.
+Además, cualquier gol anotado por el equipo sancionado mientras el robot penalizado está en el campo no será válido.
+Los robots fuera de límites pueden ser reparados si el equipo lo necesita, como se describe en la Regla 2.9, Robots dañados.
+Después de que haya pasado el tiempo de la penalización, el robot será colocado en el punto neutral desocupado más alejado de la pelota, mirando hacia su propio arco.
+Un árbitro puede eximir la penalización si el robot fue empujado accidentalmente fuera de los límites por un robot contrario.
+En tal caso, el árbitro puede tener que empujar ligeramente el robot de nuevo al campo.
+
+4_hay limitaciones de tamaño 
+soccer abierto  tamaño   altura
+                 18cm     18cm
+soccer ligero    22cm     22mc 
+
+5_puedo estar todo el tiempo en el arco 
+no se menciona nada al respecto
+
+6_que pasa si mi robot chooca coon otro 
+no se menciona nada al respecto
+
+7_que peso maximo tienen los robots
+soccer abierto    peso
+                sin limites
+soccer ligero   1400gramos
+
+8_hay limitacion en cantidad de motores
+no se menciona nada al respecto
+
+9_hay limitacion en cantidad de camaras
+Un robot puede usar cualquier número de cámaras sin restricciones en lentes, partes ópticas, sistemas ópticos y campo de visión total.
+Los componentes pueden obtenerse de cualquier manera que el equipo considere adecuada.
+
+10_puedo chupar la pelota? limites fisicos
+no se menciona nada al respecto
+
+11_y si la chupo con aire puedo
+no se menciona nada al respecto
+
+12_hay comunicacion entre robots? hay sistema rf de arranque?
+no se menciona nada al respecto
+
+13_que pasa si un robot se vuelca 
+
+14_puedo chocar otro robot en un lugar generico de la cancha
+
+15_si nuestros sensores de linea son infra-rojo o solo de color rojo
+
+16_limitacion de bateria
+
+
+
+
+
+
