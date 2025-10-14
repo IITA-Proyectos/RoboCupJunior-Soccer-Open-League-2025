@@ -1,0 +1,39 @@
+case IMPULSO_INICIAL_GIRANDO: 
+    // girar pero con más potencia 
+    if (millis() - millis_inicio_estado >= 200) 
+    { 
+        millis_inicio_estado = millis(); 
+        estado = GIRANDO; 
+    } 
+break; 
+
+case APUNTAR_PELOTA: 
+    if (abs(ánguloPelota) > 4) 
+    {
+        if (ánguloPelota > 0) 
+        { 
+            // enciende motores en sentido Anti horario 
+        } 
+        else 
+        { 
+            // enciende motores en sentido Horario 
+        } 
+    } 
+    else 
+    { 
+        millis_inicio_estado = millis(); 
+        estado = AVANZAR; 
+    } 
+ break; 
+ 
+ 
+ case AVANZANDO: 
+ 
+    if (ánguloPelota > 0)
+    { 
+        
+    } 
+    else 
+    { 
+
+    }     
