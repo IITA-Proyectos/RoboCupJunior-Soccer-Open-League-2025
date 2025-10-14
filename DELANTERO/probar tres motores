@@ -1,0 +1,175 @@
+#include <Arduino.h>
+#include <zirconLib.h>
+#include <Wire.h> 
+#include <Adafruit_Sensor.h> 
+#include <Adafruit_BNO055.h>
+
+// Pines motores
+#define INA1 2
+#define INB1 5
+#define PWM1 3
+
+#define INA2 8
+#define INB2 7
+#define PWM2 6
+
+#define INA3 11
+#define INB3 12
+#define PWM3 4
+
+//giroscopo
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
+float correccion;
+float error = 0;
+float initialYaw = 0;
+float currentYaw;
+float kp = 0.3;
+
+//variables lineas
+int blanco = 710;
+
+// Comunicación serial
+#define START_BYTE 0xAA;
+const long BAUD_RATE = 19200;
+
+// Variables velocidades
+float k;
+float g = 0.3;
+
+// Variables ángulos
+float anguloPelota = 0.0;
+float anguloArco_Amarillo = 0.0; 
+float anguloArco_Azul = 0.0;
+
+// Posiciones codificadas
+int codedYp = 0, codedYam = 0, codedYaz = 0;
+int codedXp = 0, codedXam = 0, codedXaz = 0;
+
+// Posiciones decodificadas
+float Xp = 0.0, Yp = 0.0;
+float Xam = 0.0, Yam = 0.0;
+float Xaz = 0.0, Yaz = 0.0;
+
+// Headers 
+int header1 = 0; 
+int header2 = 0; 
+int header3 = 0; 
+
+// Presencia de objetos
+bool haypelota = false;
+bool hayarco_amarillo = false;
+bool hayarco_azul = false;
+
+// Tolerancias
+const float tolerancia_centrado = 20.0;
+const float tolerancia_cercania = 50.0;
+
+// Máquina de estados
+enum Estado { 
+GIRANDO, AVANZANDO, CENTRANDO,
+PATEANDO_adelante, PATEANDO_atras, PATEANDO_pausa,
+AVANZANDO_POR_TIEMPO, GIRANDO_TIEMPO,
+DETECTA_LINEA_1, DETECTA_LINEA_2, DETECTA_LINEA_3 
+};
+Estado estado = GIRANDO;
+
+unsigned long millis_inicio_estado = millis();
+unsigned long millis_pelota = millis();
+
+// ---- FUNCIONES DE MOVIMIENTO ----
+
+void girar() {
+  analogWrite(PWM1, 100 * g); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+  analogWrite(PWM2, 100 * g); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+  analogWrite(PWM3, 100 * g); digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+}
+
+void parar() {
+  analogWrite(PWM1, 0); digitalWrite(INA1, 0); digitalWrite(INB1, 0);
+  analogWrite(PWM2, 0); digitalWrite(INA2, 0); digitalWrite(INB2, 0);
+  analogWrite(PWM3, 0); digitalWrite(INA3, 0); digitalWrite(INB3, 0);
+}
+void avanzar() {
+  analogWrite(PWM1, 100); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
+  analogWrite(PWM2, 100); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+  analogWrite(PWM3, 0);   digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+}
+// RETROCEDER
+void retroceder1() {
+  analogWrite(PWM1, 0); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+  analogWrite(PWM2, 100); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+  analogWrite(PWM3, 100);   digitalWrite(INA3, 1); digitalWrite(INB3, 0);
+}
+void retroceder2() {
+  analogWrite(PWM1, 100); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
+  analogWrite(PWM2, 0); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+  analogWrite(PWM3, 100);   digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+}
+void retroceder3() {
+  analogWrite(PWM1, 100); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+  analogWrite(PWM2, 100); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+  analogWrite(PWM3, 0);   digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+}
+
+void avanzar_patear() {
+  analogWrite(PWM1, 250); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
+  analogWrite(PWM2, 250); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+  analogWrite(PWM3, 0);   digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+}
+
+void retroceder_patear() {
+  analogWrite(PWM1, 150); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+  analogWrite(PWM2, 150); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+  analogWrite(PWM3, 0);   digitalWrite(INA3, 1); digitalWrite(INB3, 0);
+}
+
+// ---- SETUP ----
+void setup() {
+  InitializeZircon();
+  Serial.begin(BAUD_RATE);
+  Serial1.begin(BAUD_RATE);
+
+  Serial.println("Decodificador iniciado");
+
+  millis_inicio_estado = millis();
+  pinMode(LED_BUILTIN,OUTPUT);
+}
+
+  //----------GIROSCOPO-------
+//  if (!bno.begin()) {
+//    Serial.println("¡No se pudo encontrar el BNO055!");
+//    while (1);
+//  }
+//  bno.setExtCrystalUse(true);
+//
+// sensors_event_t event;
+//  bno.getEvent(&event);
+//  initialYaw   = event.orientation.x; // 0..360
+
+// ---- LOOP ----
+void loop() {
+  analogWrite(PWM1, 100); digitalWrite(INA1, 0); digitalWrite(INB1, 0);
+  delay(2000); 
+  analogWrite(PWM1, 100); digitalWrite(INA1, 0); digitalWrite(INB1, 0);
+  delay(2000); 
+
+  analogWrite(PWM1, 0); digitalWrite(INA1, 0); digitalWrite(INB1, 0);
+  delay(2000); 
+
+  analogWrite(PWM2, 100); digitalWrite(INA2, 0); digitalWrite(INB2, 0);
+  delay(2000); 
+  analogWrite(PWM2, 100); digitalWrite(INA2, 0); digitalWrite(INB2, 0);
+  delay(2000);   
+
+  analogWrite(PWM2, 0); digitalWrite(INA2, 0); digitalWrite(INB2, 0);
+  delay(2000); 
+
+  analogWrite(PWM3, 100); digitalWrite(INA3, 0); digitalWrite(INB3, 0);
+  delay(2000); 
+  analogWrite(PWM3, 100); digitalWrite(INA3, 0); digitalWrite(INB3, 0);
+  delay(2000);   
+
+  analogWrite(PWM3, 0); digitalWrite(INA3, 0); digitalWrite(INB3, 0);
+  delay(2000); 
+
+}
