@@ -264,7 +264,7 @@ void loop() {
     analogWrite(PWM1, 65 ); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
     analogWrite(PWM2, 65 ); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
     analogWrite(PWM3, 65 ); digitalWrite(INA3, 0); digitalWrite(INB3, 1); 
-    if ( millis() - millis_inicio_estado >= 340 )
+    if ( millis() - millis_inicio_estado >= 500 )
     { 
       millis_inicio_estado = millis(); 
       estado = ASIGNAR_ARCOS_parar; 
@@ -293,7 +293,7 @@ void loop() {
         Yam = Y_nuestro; 
         anguloArco_Amarillo = anguloArco_nuestro; 
       }
-      if ( hayarco_azul && (hayarco_amarillo == false)) 
+      if ( hayarco_azul or (hayarco_amarillo == false)) 
       {
         hayarco_rival = hayarco_amarillo;
         Xam = X_rival; 
@@ -531,7 +531,7 @@ void loop() {
 
     // SALIDAS 
       // cuando apunta al arco   
-      if (hayarco_rival && haypelota && (abs(Yp - Y_rival)<= tolerancia_centrado)) 
+      if (hayarco_rival && haypelota) 
       {
         millis_inicio_estado = millis();
         estado = PATEANDO_adelante;
@@ -545,7 +545,7 @@ void loop() {
       } 
 
       // si dejo de ver la pelota pero si la tiene cerca 
-      if ( millis() - millis_inicio_estado >= 5000 && hayarco_rival)
+      if ( millis() - millis_inicio_estado >= 5000 )
       {
         millis_inicio_estado = millis(); 
         estado = PATEANDO_adelante;
