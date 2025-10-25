@@ -1,0 +1,30 @@
+void moveRobotAngle(float angleDeg, float speed, float w) {
+  // angleDeg: ángulo de movimiento (0° = adelante, 90° = derecha)
+  // speed: magnitud de la velocidad lineal (0–100)
+  // w: velocidad rotacional (−100 a 100)
+
+  // Convertimos ángulo a radianes
+  float angleRad = radians(angleDeg);
+
+  // Calculamos los componentes vx, vy a partir del ángulo
+  float vx = speed * cos(angleRad);
+  float vy = speed * sin(angleRad);
+
+  // Cinemática inversa de la base de 3 ruedas (120° entre sí)
+  float m1 = vy + w;
+  float m2 = -0.866 * vx - 0.5 * vy + w;
+  float m3 =  0.866 * vx - 0.5 * vy + w;
+
+  // Normalizamos para que ningún motor supere ±100
+  float maxVal = max(max(abs(m1), abs(m2)), abs(m3));
+  if (maxVal > 100.0) {
+    m1 = (m1 / maxVal) * 100.0;
+    m2 = (m2 / maxVal) * 100.0;
+    m3 = (m3 / maxVal) * 100.0;
+  }
+
+  // Aplica dirección y potencia
+  motor1(abs((int)m1), m1 >= 0);
+  motor2(abs((int)m2), m2 >= 0);
+  motor3(abs((int)m3), m3 >= 0);
+}
