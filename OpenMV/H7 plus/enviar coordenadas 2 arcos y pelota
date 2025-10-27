@@ -57,7 +57,7 @@ r = 13.5/(2*math.pi)  # radio pelota (cm)
 
 naranja_threshold = (21, 67, 18, 79, -32, 127)    # Pelota naranja
 amarillo_threshold = (17, 70, -27, 14, 38, 111) # Arco amarillo
-azul_threshold = (3, 33, -10, 56, -66, -17)    # Arco azul
+azul_threshold = (4, 36, -13, 57, -64, -4)    # Arco azul
 
 
 # ----- Funciones -----
@@ -119,7 +119,7 @@ while(True):
     # Detectar blobs
     naranja_blobs = img.find_blobs([naranja_threshold], pixels_threshold=7, area_threshold=7, merge=True)
     azul_blobs = img.find_blobs([azul_threshold], pixels_threshold=300, area_threshold=300, merge=True)
-    amarillo_blobs = img.find_blobs([amarillo_threshold], pixels_threshold=300, area_threshold=300, merge=True)
+    amarillo_blobs = img.find_blobs([amarillo_threshold], pixels_threshold=600, area_threshold=600, merge=True)
 
     # Encender LEDs según detección
     led_rojo.off()
@@ -154,4 +154,3 @@ while(True):
 
     uart.write(bytearray(packet))
     print("Enviando:", packet)
-
