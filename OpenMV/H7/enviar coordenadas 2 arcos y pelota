@@ -56,7 +56,7 @@ r = 13.5/(2*math.pi)  # radio pelota (cm)
 # B (Canal de color azul–amarillo) : 20 a 70 → tonos amarillos moderados
 
 naranja_threshold = (21, 66, 26, 106, -27, 127)    # Pelota naranja 
-amarillo_threshold = (0, 66, -23, 4, 35, 118) # Arco amarillo 
+amarillo_threshold = (50, 70, -20, 5, 47, 80) # Arco amarillo 
 azul_threshold = (20, 44, -33, 18, -52, -3)    # Arco azul 
 
 
@@ -113,13 +113,14 @@ while(True):
     clock.tick() 
     img = sensor.snapshot() 
     
+    #img.binary([amarillo_threshold])
     # Línea vertical blanca
     #img.draw_line((160,0,160,240), color=(255,255,255))
     
     # Detectar blobs
     naranja_blobs = img.find_blobs([naranja_threshold], pixels_threshold=7, area_threshold=7, merge=True)
     azul_blobs = img.find_blobs([azul_threshold], pixels_threshold=100, area_threshold=100, merge=True)
-    amarillo_blobs = img.find_blobs([amarillo_threshold], pixels_threshold=100, area_threshold=100, merge=True)
+    amarillo_blobs = img.find_blobs([amarillo_threshold], pixels_threshold=500, area_threshold=500, merge=True)
     
     # Encender LEDs según detección
     led_rojo.off()
