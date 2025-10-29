@@ -7,8 +7,8 @@
 // Pines motores 
 
 // ELEGI 1 
-#define ROBOT1
-//#define ROBOT2 
+//#define ROBOT1
+#define ROBOT2 
 
 #if defined(ROBOT2)
   #define INA1 8
@@ -23,13 +23,14 @@
   #define INB3 5
   #define PWM3 3
 
-  #define blanco1 690
-  #define blanco2 690
+  #define blanco1 650
+  #define blanco2 650
   #define blanco3 750
 
-  #define patadM2 220
-  #define patadM1 250
+  #define patadM2 200
+  #define patadM1 250 
   #define c 0.4
+  #define ic 0.55
   
 #endif
 
@@ -46,22 +47,22 @@
   #define INB3 12
   #define PWM3 4
   
-  #define blanco1 700
-  #define blanco2 700
-  #define blanco3 700 
+  #define blanco1 600
+  #define blanco2 600
+  #define blanco3 600 
 
-  #define patadM2 200
+  #define patadM2 170
   #define patadM1 250
-  #define c 0.4
+  #define c 0.4  
+  #define ic 0.5 
   
 #endif
 
+// c: velocidad centrando 
+// ic: velocidad impulso centrando 
 
-
-// Pruebas 
-bool prueba_hay = false;
-bool prueba_coordenadas = false; 
-bool prueba_sensores = false; 
+// ARCO CONTRINCANTE
+bool ARCO_CONTRINCANTE = false; 
 
  //giroscopo
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
@@ -105,7 +106,7 @@ bool hayarco_amarillo = false;
 bool hayarco_azul = false;
 
 // Tolerancias
-const float tolerancia_centrado = 20.0;
+const float tolerancia_centrado = 30.0;
 const float tolerancia_cercania = 50.0;
 const float tolerancia_apuntado = 15.0; 
 
@@ -114,20 +115,23 @@ enum Estado {
 impulso_inicial, 
 moverce_izquierda, moverce_derecha, 
 impulso_izquierda, impulso_derecha,
-PATEANDO_pausa_inicial_arquero, PATEANDO_adelante_arquero, PATEANDO_atras_arquero, PATEANDO_pausa_arquero,avansar_despues_de_patear,
+PATEANDO_pausa_inicial_arquero, PATEANDO_adelante_arquero, PATEANDO_atras_arquero, PATEANDO_pausa_arquero,
 
-
+AVANCE_INICIO, PRIMER_IMPULSO_INICIAL_GIRANDO, 
 IMPULSO_INICIAL_GIRANDO, GIRANDO, 
-APUNTAR_PELOTA, AVANZANDO, CENTRANDO_horario, CENTRANDO_antihorario, CENTRANDO_giroscopo, 
-PATEANDO_pausa_inicial, PATEANDO_adelante, PATEANDO_atras, PATEANDO_pausa, 
+APUNTAR_PELOTA, APUNTAR_PELOTA_antihorario, AVANZANDO, 
+CENTRANDO_horario, IMPULSO_CENTRANDO_antihorario, CENTRANDO_antihorario, IMPULSO_CENTRANDO_horario, CENTRANDO_giroscopo, 
+PATEANDO_corto_pausa_inicial, PATEANDO_corto_adelante, PATEANDO_corto_pausa, PATEANDO_corto_atras, 
+PATEANDO_pausa_inicial, PATEANDO_adelante, PATEANDO_pausa, PATEANDO_atras, 
 AVANZANDO_POR_TIEMPO, 
 DETECTA_LINEA_1, DETECTA_LINEA_2, DETECTA_LINEA_3 
 }; 
-Estado estado = impulso_inicial; 
+Estado estado = AVANCE_INICIO; 
 
-unsigned long millis_inicio_estado = millis();
+unsigned long millis_inicio_estado = millis(); 
+unsigned long millis_inicio_centrando = millis(); 
 unsigned long millis_pelota = millis(); 
-int contador_am = 0; 
+int i = 0; 
 
 // ---- FUNCIONES DE MOVIMIENTO ----
 
@@ -179,7 +183,7 @@ void retroceder_patear() {
 
 // FUNCION AVANCE IZQUIERDO PROPORCIONAL 
 void aiproporcional() {
-  if (error>-1 && error <1){
+  if (error>-2 && error <-2){
   digitalWrite(INA2, 0);digitalWrite(INB2, 1);analogWrite(PWM2, pd*50);//60
   digitalWrite(INA1, 0);digitalWrite(INB1, 1);analogWrite(PWM1, pd*50);//60
   digitalWrite(INA3, 1);digitalWrite(INB3, 0);analogWrite(PWM3, pd*89);//99
@@ -203,7 +207,7 @@ void aiproporcional() {
 }
   //FUNCION AVANCE DERECHO PROPORCIONAL  
   void adproporcional() {
-  if (error>-1 && error <1){
+  if (error>-2 && error <-2){
   digitalWrite(INA2, 1);digitalWrite(INB2, 0);analogWrite(PWM2, pd*50);//60
   digitalWrite(INA1, 1);digitalWrite(INB1, 0);analogWrite(PWM1, pd*50);//60
   digitalWrite(INA3, 0);digitalWrite(INB3, 1);analogWrite(PWM3, pd*89);//99
@@ -246,6 +250,7 @@ void setup() {
  sensors_event_t event;
   bno.getEvent(&event);
   initialYaw   = event.orientation.x; // 0..360
+  millis_inicio_estado = millis(); 
 }
 
 // ---- LOOP ----
@@ -299,27 +304,15 @@ void loop() {
         }
 
         if ( Xam == 0 )
-        { 
-          contador_am = 0;  
-        }
+        { hayarco_amarillo = false; }
         else
-        { 
-          contador_am = contador_am +1; 
-        } 
-        if ( contador_am>2)
-        { 
-          hayarco_amarillo = true; 
-        }
-        else
-        {
-          hayarco_amarillo = false; 
-        }
+        { hayarco_amarillo = true; }
         
         if ( Xaz == 0 )
         { hayarco_azul = false; }
         else
         { hayarco_azul = true; }
-  //
+  
   //      Serial.print("pelota: "); Serial.print(haypelota); 
   //      Serial.print("| arco amarillo: "); Serial.print(hayarco_amarillo);
   //      Serial.print("| arco azul: "); Serial.println(hayarco_azul);
@@ -332,7 +325,9 @@ void loop() {
      haypelota=false; 
     }  
   }
-
+// --- COLOCAR CUAL ES EL ARCO AL QUE AHI QUE HACER GOL --- 
+  ARCO_CONTRINCANTE = hayarco_amarillo; 
+  
   // GIROSCOPO
   sensors_event_t event;
   bno.getEvent(&event);
@@ -341,7 +336,8 @@ void loop() {
   if ( error > 180 ) error = error - 360;
   if (error < -180) error = error + 360;
   correccion= error * kp;
-  
+
+// Serial.println(currentYaw); 
   // LECTURA SENSORES DE LINEA 
   int s1 = readLine(1); // Sensor izquierdo
   int s2 = readLine(2); // Sensor centro
@@ -357,11 +353,21 @@ void loop() {
 // Máquina de estados
   switch (estado) 
   { 
+    case AVANCE_INICIO: 
+      avanzar_patear();
+      if (millis() - millis_inicio_estado >= 700) 
+      {
+        parar();
+        millis_inicio_estado = millis();
+        estado = IMPULSO_INICIAL_GIRANDO;
+      }
+    break; 
+    
     case IMPULSO_INICIAL_GIRANDO: 
     // girar pero con más potencia
-    analogWrite(PWM1, 100 ); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
-    analogWrite(PWM2, 100 ); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
-    analogWrite(PWM3, 100 ); digitalWrite(INA3, 0); digitalWrite(INB3, 1); 
+    analogWrite(PWM1, 150 ); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+    analogWrite(PWM2, 150 ); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+    analogWrite(PWM3, 150 ); digitalWrite(INA3, 0); digitalWrite(INB3, 1); 
     
     if (millis() - millis_inicio_estado >= 50) 
     { 
@@ -369,6 +375,16 @@ void loop() {
       estado = GIRANDO; 
     } 
 
+    if (haypelota) 
+    { 
+      parar(); 
+      if(millis() - millis_inicio_estado >= 1000) // esperar un sgundo por la inercia 
+      {
+        estado = APUNTAR_PELOTA;
+        millis_inicio_estado = millis(); 
+      }
+    } 
+     
     if ( s1 >= blanco1 )
     { 
       estado = DETECTA_LINEA_1; 
@@ -390,7 +406,7 @@ void loop() {
       if (haypelota) 
       { 
         parar(); 
-        if(millis() - millis_inicio_estado >= 1000) // esperar un sgundo por la inercia 
+        if(millis() - millis_inicio_estado >= 700) // esperar un sgundo por la inercia 
         {
           estado = APUNTAR_PELOTA;
           millis_inicio_estado = millis(); 
@@ -401,7 +417,7 @@ void loop() {
         girar();
       }
 
-      if (millis() - millis_inicio_estado >= 7000)
+      if ((millis() - millis_inicio_estado >= 8000) && ((error <= 0) or (error >= 350)))  
       { 
         millis_inicio_estado = millis(); 
         estado = AVANZANDO_POR_TIEMPO;
@@ -483,6 +499,13 @@ void loop() {
       estado = AVANZANDO; 
     }
 
+    // si esta apuntando al arco idealmente 
+    if (ARCO_CONTRINCANTE && haypelota && (abs(Yp - Yam)<= tolerancia_centrado)) 
+    {
+       millis_inicio_estado = millis();
+       estado = PATEANDO_pausa_inicial;
+    } 
+        
     if (millis() - millis_pelota >= 500)   // si deja de ver la pelota
     {
       millis_inicio_estado = millis(); 
@@ -521,6 +544,7 @@ void loop() {
       // si ya esta lo suficientemente cerca de la pelota 
       if (haypelota && Xp <= tolerancia_cercania) 
       {
+        millis_inicio_centrando = millis(); 
         millis_inicio_estado = millis();
         estado = CENTRANDO_horario;
       } 
@@ -561,175 +585,291 @@ void loop() {
         estado = DETECTA_LINEA_3; 
         millis_inicio_estado = millis();
       }
-      break;
+    break;
 
-       case CENTRANDO_horario:     
+    case CENTRANDO_horario: 
+            
         analogWrite(PWM1, 60 * c); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
         analogWrite(PWM2, 60 * c); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
         analogWrite(PWM3, 180 * c); digitalWrite(INA3, 1); digitalWrite(INB3, 0);
         
-      if (hayarco_amarillo && haypelota && (abs(Yp - Yam)<= tolerancia_centrado)) 
-      {
-         
-        millis_inicio_estado = millis();
-        estado = PATEANDO_pausa_inicial;
-      } 
-      
-      if (abs(anguloPelota) >= tolerancia_apuntado)
-      { 
-         
-        millis_inicio_estado = millis(); 
-        estado = APUNTAR_PELOTA;
-      } 
+        // SALIDAS 
+        // si esta apuntando al arco idealmente 
+        if (ARCO_CONTRINCANTE && haypelota && (abs(Yp - Yam)<= tolerancia_centrado)) 
+        {
+            millis_inicio_estado = millis();
+            estado = PATEANDO_pausa_inicial;
+        } 
 
-      if ( millis() - millis_inicio_estado >= 7000 && hayarco_amarillo)
-      {
-         
-        millis_inicio_estado = millis(); 
-        estado = PATEANDO_pausa_inicial;
-      }
-      
-      if (millis() - millis_pelota >= 3000) 
-      {
-         
-        millis_inicio_estado = millis();
-        estado = IMPULSO_INICIAL_GIRANDO;
-      } 
-      
-      if (millis() - millis_inicio_estado >= 5000)
-      {
-         
-        millis_inicio_estado = millis();
-        estado = CENTRANDO_giroscopo;
-      }
-      
-      if ( s1 >= blanco1 )
-      { 
-         
-        millis_inicio_estado = millis();
-        estado = DETECTA_LINEA_1; 
-      }
-      if ( s2 >= blanco2 )
-      { 
-         
-        millis_inicio_estado = millis();
-        estado = DETECTA_LINEA_2; 
-      }
-      if ( s3 >= blanco3 )
-      { 
-        millis_inicio_estado = millis();
-        estado = DETECTA_LINEA_3; 
-      }
+        if ( (millis()- millis_inicio_estado >= 5000) && ((currentYaw <= 10) or (currentYaw >= 350)))
+        {           
+           millis_inicio_estado = millis(); 
+           estado = PATEANDO_pausa_inicial; 
+        } 
+            
+        // si ya pasaron mas de 5 segundos y esta viendo amarillo pero no esta centrado el arco y la pelota 
+        if ( (millis() - millis_inicio_estado >= 4500) && ARCO_CONTRINCANTE)
+        {
+            millis_inicio_estado = millis(); 
+            estado = PATEANDO_pausa_inicial;
+        }
+
+        // corrección para que orbite bien la pelota 
+        if (abs(anguloPelota) >= tolerancia_apuntado)
+        { 
+            millis_inicio_estado = millis(); 
+            estado = APUNTAR_PELOTA;
+        } 
+
+        // si deja de ver la pelota por más de 4 segundos 
+        if (millis() - millis_pelota >= 4000) 
+        {
+            millis_inicio_estado = millis();
+            estado = IMPULSO_INICIAL_GIRANDO;
+        } 
+        // timeout 
+        if (millis() - millis_inicio_estado >= 20000)
+        {
+            millis_inicio_estado = millis(); 
+            estado = PATEANDO_pausa_inicial;
+        }
+
+        // salidas lineas blancas 
+        if ( s1 >= blanco1 )
+        { 
+            if ((currentYaw <= 90) or (currentYaw >= 270))
+            {
+           
+               millis_inicio_estado = millis();
+               estado = PATEANDO_corto_pausa_inicial;
+            }
+            else
+            {
+              millis_inicio_estado = millis();
+              estado = IMPULSO_CENTRANDO_antihorario;    
+            }        
+        }
+        if ( s2 >= blanco2 )
+        { 
+            if ((currentYaw <= 90) or (currentYaw >= 270))
+            {
+           
+               millis_inicio_estado = millis();
+               estado = PATEANDO_corto_pausa_inicial;
+            }  
+            
+            else
+            {
+              millis_inicio_estado = millis();
+              estado = IMPULSO_CENTRANDO_antihorario;    
+            }  
+        }
+        if ( s3 >= blanco3 )
+        { 
+            if ((currentYaw <= 90) or (currentYaw >= 270))
+            {
+           
+               millis_inicio_estado = millis();
+               estado = PATEANDO_corto_pausa_inicial;
+            }  
+            
+            else
+            {
+              millis_inicio_estado = millis();
+              estado = IMPULSO_CENTRANDO_antihorario;    
+            }  
+        } 
 
     break;
-
-        case CENTRANDO_antihorario:     
-        analogWrite(PWM1, 60 * c); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
-        analogWrite(PWM2, 60 * c); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
-        analogWrite(PWM3, 180 * c); digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+    
+    case IMPULSO_CENTRANDO_antihorario: 
+        analogWrite(PWM1, 60 * ic); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
+        analogWrite(PWM2, 60 * ic); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+        analogWrite(PWM3, 180 * ic); digitalWrite(INA3, 0); digitalWrite(INB3, 1);
         
-      if (hayarco_amarillo && haypelota && (abs(Yp - Yam)<= tolerancia_centrado)) 
-      {
-        millis_inicio_estado = millis();
-        estado = PATEANDO_pausa_inicial;
-      } 
-      
-      if (abs(anguloPelota) >= tolerancia_apuntado)
-      { 
-        millis_inicio_estado = millis(); 
-        estado = APUNTAR_PELOTA;
-      } 
-
-      if ( millis() - millis_inicio_estado >= 7000 && hayarco_amarillo)
-      {
-        millis_inicio_estado = millis(); 
-        estado = PATEANDO_pausa_inicial;
-      }
-      
-      if (millis() - millis_pelota >= 5000) 
-      {
-        millis_inicio_estado = millis();
-        estado = IMPULSO_INICIAL_GIRANDO;
-      } 
-      
-      if (millis() - millis_inicio_estado >= 20000)
-      {
-        millis_inicio_estado = millis();
-        estado = CENTRANDO_giroscopo;
-      }
-      
-      if ( s1 >= blanco1 )
-      { 
-        millis_inicio_estado = millis();
-        estado = DETECTA_LINEA_1; 
-      }
-      if ( s2 >= blanco2 )
-      { 
-        millis_inicio_estado = millis();
-        estado = DETECTA_LINEA_2; 
-      }
-      if ( s3 >= blanco3 )
-      { 
-        millis_inicio_estado = millis();
-        estado = DETECTA_LINEA_3; 
-      }
-
-    break;
-
-     case CENTRANDO_giroscopo:     
+        if(millis() - millis_inicio_estado >= 500) 
+        {
+            millis_inicio_estado = millis();
+            estado = CENTRANDO_antihorario; 
+        }
+    break; 
+       
+    case CENTRANDO_antihorario: 
         analogWrite(PWM1, 60 * c); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
         analogWrite(PWM2, 60 * c); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
         analogWrite(PWM3, 180 * c); digitalWrite(INA3, 0); digitalWrite(INB3, 1);
 
-      if ((abs(currentYaw) <= 10))
-      {
-           
-        millis_inicio_estado = millis();
-        estado = PATEANDO_pausa_inicial;
-      }
-      
-      if (abs(anguloPelota) >= tolerancia_apuntado)
-      { 
-           
-        millis_inicio_estado = millis(); 
-        estado = APUNTAR_PELOTA;
-      } 
+    // SALIDAS 
+        // si esta apuntando al arco idealmente 
+        if (ARCO_CONTRINCANTE && haypelota && (abs(Yp - Yam)<= tolerancia_centrado)) 
+        {
+            millis_inicio_estado = millis();
+            estado = PATEANDO_pausa_inicial;
+        } 
 
-      if ( millis() - millis_inicio_estado >= 20000 )
-      {
+        if ( (millis()- millis_inicio_estado >= 5000) && ((currentYaw <= 10) or (currentYaw >= 350)))
+        {           
+           millis_inicio_estado = millis(); 
+           estado = PATEANDO_pausa_inicial; 
+        } 
+        
+        // si ya pasaron mas de 5 segundos y esta viendo amarillo pero no esta centrado el arco y la pelota 
+        if ( (millis() - millis_inicio_estado >= 4500) && ARCO_CONTRINCANTE)
+        {
+            millis_inicio_estado = millis(); 
+            estado = PATEANDO_pausa_inicial; 
+        }
+
+        // corrección para que orbite bien la pelota 
+        if (abs(anguloPelota) >= tolerancia_apuntado)
+        { 
+            millis_inicio_estado = millis(); 
+            estado = APUNTAR_PELOTA_antihorario;
+        } 
+
+        // si deja de ver la pelota por más de 3 segundos 
+        if (millis() - millis_pelota >= 3000) 
+        {
+            millis_inicio_estado = millis();
+            estado = IMPULSO_INICIAL_GIRANDO;
+        } 
+
+        // timeout 
+        if (millis() - millis_inicio_estado >= 20000)
+        {
+            millis_inicio_estado = millis(); 
+            estado = PATEANDO_pausa_inicial;
+        }
+        // salidas lineas blancas 
+        if ( s1 >= blanco1 )
+        { 
+            if ((currentYaw <= 90) or (currentYaw >= 270))
+            {
            
+               millis_inicio_estado = millis();
+               estado = PATEANDO_corto_pausa_inicial; 
+            } 
+            else
+            {
+              millis_inicio_estado = millis();
+              estado = IMPULSO_CENTRANDO_antihorario;    
+            }     
+        }
+        if ( s2 >= blanco2 )
+        { 
+            if ((currentYaw <= 90) or (currentYaw >= 270))
+            {
+           
+               millis_inicio_estado = millis();
+               estado = PATEANDO_corto_pausa_inicial; 
+            }
+            else
+            {
+              millis_inicio_estado = millis();
+              estado = IMPULSO_CENTRANDO_antihorario;    
+            }  
+        }
+        if ( s3 >= blanco3 )
+        { 
+            if ((currentYaw <= 90) or (currentYaw >= 270))
+            {
+           
+               millis_inicio_estado = millis();
+               estado = PATEANDO_corto_pausa_inicial; 
+            }
+            else
+            {
+              millis_inicio_estado = millis();
+              estado = IMPULSO_CENTRANDO_antihorario;    
+            }  
+        } 
+
+    break; 
+    
+    case IMPULSO_CENTRANDO_horario: 
+        analogWrite(PWM1, 60 * ic); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+        analogWrite(PWM2, 60 * ic); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+        analogWrite(PWM3, 180 * ic); digitalWrite(INA3, 1); digitalWrite(INB3, 0);
+        
+        if(millis() - millis_inicio_estado >= 500) 
+        {
+            millis_inicio_estado = millis();
+            estado = CENTRANDO_antihorario; 
+        }
+    break; 
+
+    case APUNTAR_PELOTA_antihorario: 
+      if (abs(anguloPelota) >= tolerancia_apuntado) 
+      {
+        if (anguloPelota > 0) 
+        { 
+          // enciende motores en sentido Anti horario 
+          analogWrite(PWM1, 100 * a); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+          analogWrite(PWM2, 100 * a); digitalWrite(INA2, 0); digitalWrite(INB2, 1);
+          analogWrite(PWM3, 100 * a); digitalWrite(INA3, 0); digitalWrite(INB3, 1);
+        } 
+        else 
+        { 
+          // enciende motores en sentido Horario 
+          analogWrite(PWM1, 100 * a); digitalWrite(INA1, 1); digitalWrite(INB1, 0);
+          analogWrite(PWM2, 100 * a); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+          analogWrite(PWM3, 100 * a); digitalWrite(INA3, 1); digitalWrite(INB3, 0);
+        } 
+      }
+      else
+      {
         millis_inicio_estado = millis(); 
-        estado = PATEANDO_pausa_inicial;
-      }
-      
-      if (millis() - millis_pelota >= 5000) 
-      {
-           
-        millis_inicio_estado = millis();
-        estado = IMPULSO_INICIAL_GIRANDO;
-      } 
-      
-      if ( s1 >= blanco1 )
-      { 
-           
-        millis_inicio_estado = millis();
-        estado = DETECTA_LINEA_1; 
-      }
-      if ( s2 >= blanco2 )
-      { 
-           
-        millis_inicio_estado = millis();
-        estado = DETECTA_LINEA_2; 
-      }
-      if ( s3 >= blanco3 )
-      { 
-           
-        millis_inicio_estado = millis();
-        estado = DETECTA_LINEA_3; 
+        estado = CENTRANDO_antihorario; 
       }
 
     break;
 
+    // --- PATADA CORTA--- 
+    
+    case PATEANDO_corto_pausa_inicial:
+      parar();
+      if (millis() - millis_inicio_estado >= 500) 
+      {
+        estado = PATEANDO_corto_adelante;
+        millis_inicio_estado = millis();
+      }  
+      
+    break; 
+      
+    case PATEANDO_corto_adelante:
+      avanzar_patear();
+      if (millis() - millis_inicio_estado >= 200) 
+      {
+        parar();
+        millis_inicio_estado = millis();
+        estado = PATEANDO_corto_pausa;
+      }
+      
+    break;
+
+    case PATEANDO_corto_pausa: 
+      parar();
+      if (millis() - millis_inicio_estado >= 500) 
+      {
+        estado = PATEANDO_corto_atras;
+        millis_inicio_estado = millis();
+      }  
+      
+    break;
+      
+    case PATEANDO_corto_atras: 
+      retroceder_patear();
+      if (millis() - millis_inicio_estado >= 400) 
+      {
+        parar();
+        estado = IMPULSO_INICIAL_GIRANDO; 
+        millis_inicio_estado = millis(); 
+      }
+      
+    break; 
+    
+    // --- PATADA --- 
+    
     case PATEANDO_pausa_inicial:
       parar();
       if (millis() - millis_inicio_estado >= 1000) 
@@ -808,11 +948,11 @@ void loop() {
       
     case PATEANDO_atras: 
       retroceder_patear();
-      if (millis() - millis_inicio_estado >= 400) 
+      if (millis() - millis_inicio_estado >= 200) 
       {
         parar();
-        estado = IMPULSO_INICIAL_GIRANDO;
-        millis_inicio_estado = millis();
+        estado = IMPULSO_INICIAL_GIRANDO; 
+        millis_inicio_estado = millis(); 
       }
       
       if ( s1 >= blanco1 )
@@ -830,19 +970,23 @@ void loop() {
         estado = DETECTA_LINEA_3; 
         millis_inicio_estado = millis();
       }
+      
     break; 
 
     case DETECTA_LINEA_1: 
+    
       retroceder1(); 
       if (millis() - millis_inicio_estado >= 400)
       {
         parar();
         millis_inicio_estado = millis();
-        estado = IMPULSO_INICIAL_GIRANDO; 
+        estado = IMPULSO_INICIAL_GIRANDO;  
       }
+      
     break; 
 
     case DETECTA_LINEA_2: 
+    
       retroceder2(); 
       if (millis() - millis_inicio_estado >= 400)
       {
@@ -850,9 +994,11 @@ void loop() {
         millis_inicio_estado = millis();
         estado = IMPULSO_INICIAL_GIRANDO; 
       }
-      break; 
+      
+    break; 
 
     case DETECTA_LINEA_3: 
+    
       retroceder3(); 
       if (millis() - millis_inicio_estado >= 400)
       {
@@ -860,50 +1006,55 @@ void loop() {
         millis_inicio_estado = millis();
         estado = IMPULSO_INICIAL_GIRANDO; 
       }
-      break; 
+      
+    break; 
 
-    /////////////////// MOVIMIENTO LATERAL ////////////////
+    ///////////////////////// ARQUERO ///////////////////////// 
 
     case impulso_inicial:
+    
       digitalWrite(INA2, 1);digitalWrite(INB2, 0);analogWrite(PWM2, 1.8*50); 
       digitalWrite(INA1, 1);digitalWrite(INB1, 0);analogWrite(PWM1, 1.8*50); 
       digitalWrite(INA3, 0);digitalWrite(INB3, 1);analogWrite(PWM3, 1.8*85); 
+      
       if(millis() - millis_inicio_estado >= 40)
       {
         estado = moverce_derecha; 
         millis_inicio_estado = millis(); 
       }
+      
     break; 
     
     case moverce_derecha: 
       adproporcional(); 
 
-    // SALIDAS
-     // si ve pelota 
+    // SALIDAS  
+      // si ve pelota 
       
       if (haypelota) 
       {
         if( (Xp <= tolerancia_cercania) && (abs(Yp) <= 5) ) 
-          {
-            parar();
-            estado = PATEANDO_pausa_inicial_arquero; 
-            millis_inicio_estado = millis();
-          }
+        {
+          parar();
+          estado = PATEANDO_pausa_inicial_arquero; 
+          millis_inicio_estado = millis();
+        }
+        
         if (abs(Yp) >= 5)
-          { 
-            pd = 1.5;
+        { 
+          pd = 1.5;
             
-            if( Yp < 0 )
-            {
-              estado = moverce_derecha;
-              millis_inicio_estado = millis(); 
-            }
-            else
-            {
-              estado = moverce_izquierda;
-              millis_inicio_estado = millis();  
-            } 
+          if( Yp < 0 )
+          {
+            estado = moverce_derecha;
+            millis_inicio_estado = millis(); 
           }
+          else
+          {
+            estado = moverce_izquierda;
+            millis_inicio_estado = millis();  
+          } 
+        }
         else
         {parar();}
       }    
@@ -914,7 +1065,7 @@ void loop() {
 
     // si ve blanco 
     
-      if (s1 >= blanco1 or s2 >= blanco2 or s3 >=blanco3)
+      if (s1 >= blanco1 or s2 >= blanco2)
       {
           parar();
           estado = impulso_izquierda; 
@@ -925,19 +1076,20 @@ void loop() {
     case moverce_izquierda: 
       aiproporcional();
 
-    // SALIDAS 
+    // SALIDAS  
       // si ve pelota 
       
       if (haypelota) 
       {
         if( (Xp <= tolerancia_cercania) && (abs(Yp) <= 5) ) 
-          {
+        {
             parar();
             estado = PATEANDO_pausa_inicial_arquero; 
             millis_inicio_estado = millis();
-          }
+        } 
+        
         if (abs(Yp) >= 5)
-          { 
+        { 
             pd = 1.5;
             
             if( Yp < 0 )
@@ -950,18 +1102,18 @@ void loop() {
               estado = moverce_izquierda;
               millis_inicio_estado = millis();  
             } 
-          }
+        }
         else
         {parar();}
       }    
       else 
       {
-        pd = 1; 
+          pd = 1; 
       }
 
       // si ve blanco 
       
-      if (s1 >= blanco1 or s2 >= blanco2 or s3 >=blanco3 )
+      if (s1 >= blanco1 or s2 >= blanco2)
       {
           parar();
           estado = impulso_derecha; 
@@ -971,6 +1123,7 @@ void loop() {
     break; 
 
     case impulso_derecha: 
+    
       adproporcional(); 
       
       if (millis() - millis_inicio_estado >= 350) 
@@ -978,9 +1131,11 @@ void loop() {
          estado = moverce_derecha;
          millis_inicio_estado = millis();
       } 
+      
     break; 
 
     case impulso_izquierda: 
+    
       aiproporcional(); 
       
       if (millis() - millis_inicio_estado >= 350) 
@@ -988,56 +1143,54 @@ void loop() {
         estado = moverce_izquierda;
         millis_inicio_estado = millis();
       } 
+      
     break; 
 
     //--- PATADA ---
-      case PATEANDO_pausa_inicial_arquero:
-        parar();
-        if (millis() - millis_inicio_estado >= 100)
-        {
-          millis_inicio_estado = millis(); 
-          estado = PATEANDO_adelante_arquero;  
-        }
-      break; 
+    case PATEANDO_pausa_inicial_arquero: 
     
-     case PATEANDO_adelante_arquero:
-        avanzar_patear();
-        if (millis() - millis_inicio_estado >= 300) 
-        {
-          parar();
-          millis_inicio_estado = millis();
-          estado = PATEANDO_pausa_arquero;
-        }
+      parar();
+      if (millis() - millis_inicio_estado >= 500)
+      {
+         millis_inicio_estado = millis(); 
+         estado = PATEANDO_adelante_arquero;  
+      }
       
-      break;
+    break; 
+    
+    case PATEANDO_adelante_arquero: 
+    
+      avanzar_patear();
+      if (millis() - millis_inicio_estado >= 300) 
+      {
+        parar();
+        millis_inicio_estado = millis();
+        estado = PATEANDO_pausa_arquero;
+      }
+      
+    break;
   
-      case PATEANDO_pausa_arquero: 
+    case PATEANDO_pausa_arquero: 
         parar();
         if (millis() - millis_inicio_estado >= 1000) 
         {
-          estado = PATEANDO_atras_arquero;
-          millis_inicio_estado = millis();
+            estado = PATEANDO_atras_arquero;
+            millis_inicio_estado = millis();
         }  
         
-      break;
+    break;
         
-      case PATEANDO_atras_arquero: 
-         analogWrite(PWM1, 100); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
-         analogWrite(PWM2, 100); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
-         analogWrite(PWM3, 0);   digitalWrite(INA3, 1); digitalWrite(INB3, 0);
-        if(s1>=blanco1 or s2>=blanco2 or s3>=blanco3){
-            millis_inicio_estado = millis(); 
-            estado = avansar_despues_de_patear;
-          }
+    case PATEANDO_atras_arquero: 
+        retroceder_patear();
         
-      break; 
-      case avansar_despues_de_patear:
-      avanzar();
-      if (millis()- millis_inicio_estado >= 1000)
-      {
-        estado = moverce_derecha;
-         millis_inicio_estado = millis();
-      }
-      break;
+        if ((s1 >= blanco1) or (s2 >= blanco2) or (s3 >= blanco3)) 
+        {
+          parar();
+          estado = moverce_derecha;
+          millis_inicio_estado = millis();
+        }
+        
+    break;
+
   }
-}
+} 
