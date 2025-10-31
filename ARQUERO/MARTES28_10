@@ -7,8 +7,8 @@
 // Pines motores 
 
 // ELEGI 1 
-//#define ROBOT1
-#define ROBOT2 
+#define ROBOT1
+//#define ROBOT2 
 
 #if defined(ROBOT2)
   #define INA1 8
@@ -115,7 +115,7 @@ enum Estado {
 impulso_inicial, 
 moverce_izquierda, moverce_derecha, 
 impulso_izquierda, impulso_derecha,
-PATEANDO_pausa_inicial_arquero, PATEANDO_adelante_arquero, PATEANDO_atras_arquero, PATEANDO_pausa_arquero,
+PATEANDO_pausa_inicial_arquero, PATEANDO_adelante_arquero, PATEANDO_atras_arquero, PATEANDO_pausa_arquero,avanzar_despues_de_patear,
 
 AVANCE_INICIO, PRIMER_IMPULSO_INICIAL_GIRANDO, 
 IMPULSO_INICIAL_GIRANDO, GIRANDO, 
@@ -126,7 +126,7 @@ PATEANDO_pausa_inicial, PATEANDO_adelante, PATEANDO_pausa, PATEANDO_atras,
 AVANZANDO_POR_TIEMPO, 
 DETECTA_LINEA_1, DETECTA_LINEA_2, DETECTA_LINEA_3 
 }; 
-Estado estado = AVANCE_INICIO; 
+Estado estado = impulso_inicial; 
 
 unsigned long millis_inicio_estado = millis(); 
 unsigned long millis_inicio_centrando = millis(); 
@@ -183,7 +183,7 @@ void retroceder_patear() {
 
 // FUNCION AVANCE IZQUIERDO PROPORCIONAL 
 void aiproporcional() {
-  if (error>-2 && error <-2){
+  if (error>-1 && error <1){
   digitalWrite(INA2, 0);digitalWrite(INB2, 1);analogWrite(PWM2, pd*50);//60
   digitalWrite(INA1, 0);digitalWrite(INB1, 1);analogWrite(PWM1, pd*50);//60
   digitalWrite(INA3, 1);digitalWrite(INB3, 0);analogWrite(PWM3, pd*89);//99
@@ -207,7 +207,7 @@ void aiproporcional() {
 }
   //FUNCION AVANCE DERECHO PROPORCIONAL  
   void adproporcional() {
-  if (error>-2 && error <-2){
+  if (error>-1 && error <1){
   digitalWrite(INA2, 1);digitalWrite(INB2, 0);analogWrite(PWM2, pd*50);//60
   digitalWrite(INA1, 1);digitalWrite(INB1, 0);analogWrite(PWM1, pd*50);//60
   digitalWrite(INA3, 0);digitalWrite(INB3, 1);analogWrite(PWM3, pd*89);//99
@@ -1181,16 +1181,24 @@ void loop() {
     break;
         
     case PATEANDO_atras_arquero: 
-        retroceder_patear();
-        
+         analogWrite(PWM1, 150); digitalWrite(INA1, 0); digitalWrite(INB1, 1);
+         analogWrite(PWM2, 150); digitalWrite(INA2, 1); digitalWrite(INB2, 0);
+         analogWrite(PWM3, 0);   digitalWrite(INA3, 1); digitalWrite(INB3, 0);
+       //corregir por si las dodas  
         if ((s1 >= blanco1) or (s2 >= blanco2) or (s3 >= blanco3)) 
         {
-          parar();
-          estado = moverce_derecha;
+          estado = avanzar_despues_de_patear;
           millis_inicio_estado = millis();
         }
-        
+   break;
+    
+   case avanzar_despues_de_patear:
+    avanzar();
+    if(millis() - millis_inicio_estado >=1000)
+    {
+      estado = moverce_derecha;
+      millis_inicio_estado = millis();
+    }
     break;
-
   }
 } 
